@@ -8,7 +8,8 @@
 import { Registry } from '../Registry';
 import type { HomeAssistant } from '../types/homeassistant';
 import type { AreaRegistryEntry, EntityRegistryEntry } from '../types/registries';
-import type { AreasDisplay } from '../types/strategy';
+import type { AreasDisplay, StackKey } from '../types/strategy';
+import { DEFAULT_STACKS_ORDER } from '../types/strategy';
 
 // -- Module-level RegExp caches (shared across all calls) -------------
 
@@ -192,4 +193,28 @@ export function sortByLastChanged(a: string, b: string, hass: HomeAssistant): nu
   const dateA = new Date(stateA.last_changed).getTime();
   const dateB = new Date(stateB.last_changed).getTime();
   return dateB - dateA; // Newest first
+}
+
+/**
+ * Merges a configured room stack order with the current defaults.
+ * Keeps unknown future keys out and appends newly introduced default stacks.
+ */
+export function mergeStacksOrder(order?: StackKey[]): StackKey[] {
+  if (!order || order.length === 0) return [...DEFAULT_STACKS_ORDER];
+
+  const valid = new Set<StackKey>(DEFAULT_STACKS_ORDER);
+  const seen = new Set<StackKey>();
+  const result: StackKey[] = [];
+
+  for (const key of order) {
+    if (!valid.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    result.push(key);
+  }
+
+  for (const key of DEFAULT_STACKS_ORDER) {
+    if (!seen.has(key)) result.push(key);
+  }
+
+  return result;
 }

@@ -8,14 +8,50 @@
 
 // -- Section Ordering -------------------------------------------------
 
-export type SectionKey = 'overview' | 'custom_cards' | 'areas' | 'weather' | 'energy';
+export type SectionKey = 'overview' | 'custom_cards' | 'custom_sections' | 'areas' | 'weather' | 'energy';
 
 export const DEFAULT_SECTIONS_ORDER: SectionKey[] = [
   'overview',
   'custom_cards',
+  'custom_sections',
   'areas',
   'weather',
   'energy',
+];
+
+// -- Stack Ordering (per-area room view) ------------------------------
+
+export type StackKey =
+  | 'ups'
+  | 'cameras'
+  | 'lights'
+  | 'locks'
+  | 'climate'
+  | 'covers'
+  | 'covers_curtain'
+  | 'covers_window'
+  | 'media'
+  | 'scenes'
+  | 'misc'
+  | 'automations'
+  | 'scripts'
+  | 'room_pins';
+
+export const DEFAULT_STACKS_ORDER: StackKey[] = [
+  'ups',
+  'cameras',
+  'lights',
+  'locks',
+  'climate',
+  'covers',
+  'covers_curtain',
+  'covers_window',
+  'media',
+  'scenes',
+  'misc',
+  'automations',
+  'scripts',
+  'room_pins',
 ];
 
 // -- Main Strategy Config ---------------------------------------------
@@ -43,6 +79,7 @@ export interface Simon42StrategyConfig {
   show_locks_in_rooms?: boolean; // default: false
   show_automations_in_rooms?: boolean; // default: false
   show_scripts_in_rooms?: boolean; // default: false
+  show_ups_in_rooms?: boolean; // default: true
   show_window_contacts_in_rooms?: boolean; // default: false
   show_door_contacts_in_rooms?: boolean; // default: false
   show_switches_on_areas?: boolean; // default: false
@@ -77,6 +114,9 @@ export interface Simon42StrategyConfig {
   custom_cards_heading?: string;
   custom_cards_icon?: string;
 
+  // Custom sections (multiple complete sections on overview)
+  custom_sections?: CustomSection[];
+
   // Custom badges (shown in header next to person chips)
   custom_badges?: CustomBadge[];
 }
@@ -90,6 +130,8 @@ export interface AreasDisplay {
 
 export interface AreaOptions {
   groups_options?: Record<string, GroupOptions>;
+  custom_cards?: AreaCustomCard[];
+  stacks_order?: StackKey[]; // default: DEFAULT_STACKS_ORDER
 }
 
 export interface GroupOptions {
@@ -144,6 +186,36 @@ export interface CustomCard {
   _yaml_error?: string;
 }
 
+// -- Custom Sections --------------------------------------------------
+
+export interface CustomSection {
+  /** Heading text for this section */
+  title?: string;
+  /** MDI icon for this section */
+  icon?: string;
+  /** Cards within this section */
+  cards?: CustomCard[];
+}
+
+// -- Area Custom Cards (per-area room view) ---------------------------
+
+export interface AreaCustomCard {
+  /** Input mode: free YAML, guided tile, or complete section YAML */
+  mode?: 'yaml' | 'tile' | 'section'; // default: 'yaml'
+  /** Placement relative to auto-generated room sections */
+  position?: 'top' | 'bottom'; // default: 'bottom'
+  /** Optional heading rendered before the card/section */
+  title?: string;
+  /** Raw YAML string from the editor */
+  yaml?: string;
+  /** Parsed Lovelace card/section config */
+  parsed_config?: Record<string, any> | Record<string, any>[] | null;
+  /** YAML parse error message, if any */
+  _yaml_error?: string;
+  /** Entity ID for guided `{ type: 'tile', entity }` mode */
+  entity?: string;
+}
+
 // -- Room Entities (entity collections per area) ----------------------
 
 export interface RoomEntities {
@@ -161,6 +233,7 @@ export interface RoomEntities {
   automations: string[];
   scripts: string[];
   cameras: string[];
+  ups: string[];
   [key: string]: string[];
 }
 

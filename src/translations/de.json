@@ -15,6 +15,7 @@
     "summaries": "Zusammenfassungen",
     "favorites": "Favoriten",
     "custom_cards": "Eigene Karten",
+    "custom_sections": "Eigene Abschnitte",
     "areas": "Bereiche",
     "areas_other": "Weitere Bereiche",
     "weather": "Wetter",
@@ -102,6 +103,9 @@
     "scripts": "Skripte",
     "room_pins": "Raum-Pins"
   },
+  "ups": {
+    "battery": "Batterie"
+  },
   "editor": {
     "section_order": "Abschnitts-Reihenfolge",
     "section_order_desc": "Ziehe die Abschnitte per Drag & Drop in die gewünschte Reihenfolge. Leere Abschnitte werden automatisch ausgeblendet.",
@@ -164,6 +168,8 @@
     "show_automations_in_rooms_desc": "Zeigt dem Bereich zugeordnete Automationen in den jeweiligen Raum-Ansichten an.",
     "show_scripts_in_rooms": "Skripte in Raum-Ansichten anzeigen",
     "show_scripts_in_rooms_desc": "Zeigt dem Bereich zugeordnete Skripte in den jeweiligen Raum-Ansichten an.",
+    "show_ups_in_rooms": "USV/UPS in Raum-Ansichten anzeigen",
+    "show_ups_in_rooms_desc": "Erkennt USV-Geräte anhand von Batterie-, Laufzeit-, Last- oder Spannungs-Sensoren und zeigt sie als eigene Raum-Section an.",
     "show_window_contacts_in_rooms": "Fensterkontakte in Raum-Ansichten anzeigen",
     "show_window_contacts_in_rooms_desc": "Zeigt Fensterkontakte als Badges in den jeweiligen Raum-Ansichten an.",
     "show_door_contacts_in_rooms": "Türkontakte in Raum-Ansichten anzeigen",
@@ -219,6 +225,7 @@
     "domain_fan": "Ventilatoren",
     "domain_switches": "Schalter",
     "domain_locks": "Schlösser",
+    "domain_ups": "USV/UPS",
     "domain_badges": "Raum-Badges",
     "badges_additional": "Zusätzliche Badges",
     "badges_add": "Hinzufügen",

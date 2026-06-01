@@ -14,7 +14,7 @@ import { Registry } from '../Registry';
 import { collectPersons, findWeatherEntity, findDummySensor } from '../utils/entity-filter';
 import { getVisibleAreas } from '../utils/name-utils';
 import { createPersonBadges } from '../utils/badge-builder';
-import { createOverviewSection, createCustomCardsSection } from '../sections/OverviewSection';
+import { createOverviewSection, createCustomCardsSection, createCustomSectionsArray } from '../sections/OverviewSection';
 import { createAreasSection } from '../sections/AreasSection';
 import { createWeatherSection, createEnergySection } from '../sections/WeatherEnergySection';
 import { createOverviewView } from '../utils/view-builder';
@@ -25,7 +25,7 @@ import { timeStart, timeEnd, debugLog } from '../utils/debug';
  * appends any missing keys at the end (forward compatibility).
  */
 function normalizeSectionsOrder(order: SectionKey[]): SectionKey[] {
-  const validKeys = new Set<SectionKey>(['overview', 'custom_cards', 'areas', 'weather', 'energy']);
+  const validKeys = new Set<SectionKey>(['overview', 'custom_cards', 'custom_sections', 'areas', 'weather', 'energy']);
   const seen = new Set<SectionKey>();
   const result: SectionKey[] = [];
   for (const key of order) {
@@ -108,6 +108,7 @@ class Simon42ViewOverviewStrategy extends HTMLElement {
     const sectionMap = new Map<SectionKey, LovelaceSectionConfig | LovelaceSectionConfig[] | null>([
       ['overview', overviewSection],
       ['custom_cards', customCardsSection],
+      ['custom_sections', createCustomSectionsArray(dashboardConfig.custom_sections || [])],
       ['areas', areasSections],
       ['weather', createWeatherSection(weatherEntity ?? null, showWeather)],
       ['energy', createEnergySection(showEnergy, dashboardConfig.energy_link_dashboard !== false)],

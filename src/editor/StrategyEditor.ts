@@ -5,7 +5,7 @@
 // vanilla HTMLElement + innerHTML pattern.
 // ====================================================================
 
-import { LitElement, html, css, nothing, type TemplateResult, type PropertyValues } from 'lit';
+import { LitElement, html, css, nothing, type TemplateResult } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import yaml from 'js-yaml';
 
@@ -1055,6 +1055,8 @@ class Simon42DashboardStrategyEditor extends LitElement {
     switch (key) {
       case 'custom_cards':
         return (this._config.custom_cards || []).length === 0;
+      case 'custom_sections':
+        return (this._config.custom_sections || []).length === 0;
       case 'weather':
         return this._config.show_weather === false;
       case 'energy':
@@ -1067,6 +1069,7 @@ class Simon42DashboardStrategyEditor extends LitElement {
   private static _sectionMeta = new Map<SectionKey, { icon: string; labelKey: string }>([
     ['overview', { icon: 'mdi:home-outline', labelKey: 'sections.overview' }],
     ['custom_cards', { icon: 'mdi:cards', labelKey: 'sections.custom_cards' }],
+    ['custom_sections', { icon: 'mdi:view-grid-plus-outline', labelKey: 'sections.custom_sections' }],
     ['areas', { icon: 'mdi:floor-plan', labelKey: 'sections.areas' }],
     ['weather', { icon: 'mdi:weather-partly-cloudy', labelKey: 'sections.weather' }],
     ['energy', { icon: 'mdi:lightning-bolt', labelKey: 'sections.energy' }],
@@ -1421,6 +1424,7 @@ class Simon42DashboardStrategyEditor extends LitElement {
     const showLocksInRooms = this._config.show_locks_in_rooms === true;
     const showAutomationsInRooms = this._config.show_automations_in_rooms === true;
     const showScriptsInRooms = this._config.show_scripts_in_rooms === true;
+    const showUpsInRooms = this._config.show_ups_in_rooms !== false;
     const useDefaultAreaSort = this._config.use_default_area_sort === true;
 
     const allAreas = Object.values(this._hass!.areas).sort((a, b) => a.name.localeCompare(b.name));
@@ -1454,6 +1458,10 @@ class Simon42DashboardStrategyEditor extends LitElement {
         ${this._renderCheckbox('show-scripts-in-rooms', localize('editor.show_scripts_in_rooms'), showScriptsInRooms,
           (checked) => this._toggleChanged('show_scripts_in_rooms', checked, false))}
         <div class="description">${localize('editor.show_scripts_in_rooms_desc')}</div>
+
+        ${this._renderCheckbox('show-ups-in-rooms', localize('editor.show_ups_in_rooms'), showUpsInRooms,
+          (checked) => this._toggleChanged('show_ups_in_rooms', checked, true))}
+        <div class="description">${localize('editor.show_ups_in_rooms_desc')}</div>
 
         ${this._renderCheckbox('use-default-area-sort', localize('editor.use_default_area_sort'), useDefaultAreaSort,
           (checked) => this._toggleChanged('use_default_area_sort', checked, false))}
@@ -1881,6 +1889,7 @@ class Simon42DashboardStrategyEditor extends LitElement {
       { key: 'fan', label: localize('editor.domain_fan'), icon: 'mdi:fan' },
       { key: 'switches', label: localize('editor.domain_switches'), icon: 'mdi:light-switch' },
       { key: 'locks', label: localize('editor.domain_locks'), icon: 'mdi:lock' },
+      { key: 'ups', label: localize('editor.domain_ups'), icon: 'mdi:battery-charging' },
     ];
 
     const hasEntities = domainGroups.some((g) => (groupedEntities[g.key]?.length ?? 0) > 0);
@@ -3073,6 +3082,7 @@ async function getAreaGroupedEntities(areaId: string, hass: HomeAssistant): Prom
     automations: [],
     scripts: [],
     cameras: [],
+    ups: [],
   };
 
   const excludeLabels = entities
@@ -3124,7 +3134,43 @@ async function getAreaGroupedEntities(areaId: string, hass: HomeAssistant): Prom
       roomEntities.switches.push(entity.entity_id);
     } else if (domain === 'lock') {
       roomEntities.locks.push(entity.entity_id);
+    } else if (domain === 'automation') {
+      roomEntities.automations.push(entity.entity_id);
+    } else if (domain === 'script') {
+      roomEntities.scripts.push(entity.entity_id);
     }
+  }
+
+  const upsSignalClasses = new Set(['duration', 'apparent_power', 'power', 'voltage']);
+  const upsDetectIdPattern = /(^|[._])(load|runtime|time_left|input_voltage|input)([._]|$)/;
+  const byDevice = new Map<string, string[]>();
+  for (const entity of entities) {
+    let belongsToArea = false;
+    if (entity.area_id) belongsToArea = entity.area_id === areaId;
+    else if (entity.device_id && areaDevices.has(entity.device_id)) belongsToArea = true;
+    if (!belongsToArea) continue;
+    if (!hass.states[entity.entity_id]) continue;
+    if (!entity.device_id) continue;
+    const domain = entity.entity_id.split('.')[0];
+    if (domain !== 'sensor' && domain !== 'binary_sensor') continue;
+    const list = byDevice.get(entity.device_id);
+    if (list) list.push(entity.entity_id);
+    else byDevice.set(entity.device_id, [entity.entity_id]);
+  }
+
+  for (const [, entityIds] of byDevice) {
+    const batteryId = entityIds.find((id) => {
+      const attrs = hass.states[id]?.attributes;
+      return attrs?.device_class === 'battery' && attrs?.unit_of_measurement === '%';
+    });
+    if (!batteryId) continue;
+    const isNut = entityIds.some((id) => (hass.entities?.[id] as any)?.platform === 'nut');
+    const isUps = isNut || entityIds.some((id) => {
+      if (id === batteryId) return false;
+      const dc = hass.states[id]?.attributes?.device_class as string | undefined;
+      return (dc !== undefined && upsSignalClasses.has(dc)) || upsDetectIdPattern.test(id);
+    });
+    if (isUps) roomEntities.ups.push(batteryId);
   }
 
   return roomEntities;

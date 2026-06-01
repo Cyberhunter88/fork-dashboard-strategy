@@ -97,6 +97,7 @@ class Simon42DashboardStrategy extends HTMLElement {
           {
             area,
             groups_options: areaOptions?.groups_options || {},
+            custom_cards: areaOptions?.custom_cards || [],
             dashboardConfig: config,
           },
           hass
