@@ -34,6 +34,49 @@ function mediaPlayerSupportsPlayback(state: HassEntity): boolean {
   return (f & (MEDIA_PAUSE | MEDIA_PLAY | MEDIA_STOP)) !== 0;
 }
 
+/** Config fields consumed by the room-pins section */
+interface RoomPinsConfig {
+  room_pin_entities?: string[];
+  room_pins_show_state?: boolean;
+  room_pins_hide_last_changed?: boolean;
+  room_pins_first?: boolean;
+}
+
+/** Filter all configured room pins for the ones in the given area */
+function getAreasRoomPins(config: RoomPinsConfig, area: AreaRegistryEntry): string[] {
+    const roomPinEntities: string[] = config.room_pin_entities || [];
+    return roomPinEntities.filter((entityId) => {
+      const entity = Registry.getEntity(entityId);
+      if (!entity) return false;
+      if (entity.area_id === area.area_id) return true;
+      if (entity.device_id) {
+        const device = Registry.getDevice(entity.device_id);
+        if (device?.area_id === area.area_id) return true;
+      }
+      return false;
+    });
+}
+
+/** Build the tile-card factory for room-pin entities */
+function buildRoomPinTile(
+  config: RoomPinsConfig,
+  area: AreaRegistryEntry,
+  hass: HomeAssistant
+): (e: string) => LovelaceCardConfig {
+  return (e: string): LovelaceCardConfig => {
+    const pinStateContent: string[] = [];
+    if (config.room_pins_show_state === true) pinStateContent.push('state');
+    if (config.room_pins_hide_last_changed !== true) pinStateContent.push('last_changed');
+    return {
+      type: 'tile',
+      entity: e,
+      name: stripAreaName(e, area, hass),
+      vertical: false,
+      ...(pinStateContent.length > 0 ? { state_content: pinStateContent } : {}),
+    };
+  };
+}
+
 class Simon42ViewRoomStrategy extends HTMLElement {
   static async generate(config: any, hass: HomeAssistant): Promise<LovelaceViewConfig> {
     const area: AreaRegistryEntry = config.area;
@@ -445,6 +488,16 @@ class Simon42ViewRoomStrategy extends HTMLElement {
       });
     };
 
+    // Room pins render as the last section by default; opt-in `room_pins_first` moves them to the top (#189)
+    if (dashboardConfig.room_pins_first === true) {
+      domainSection(
+        getAreasRoomPins(dashboardConfig, area),
+        localize('room.room_pins'),
+        'mdi:pin',
+        buildRoomPinTile(dashboardConfig, area, hass)
+      );
+    }
+
     if (roomEntities.lights.length > 0) {
       sections.push({
         type: 'grid',
@@ -473,15 +526,36 @@ class Simon42ViewRoomStrategy extends HTMLElement {
       state_content: 'last_changed',
     }));
 
-    domainSection(roomEntities.climate, localize('room.climate'), 'mdi:thermostat', (e) => ({
-      type: 'tile',
-      entity: e,
-      name: stripAreaName(e, area, hass),
-      features: [{ type: 'climate-hvac-modes' }],
-      features_position: 'inline',
-      vertical: false,
-      state_content: ['hvac_action', 'current_temperature'],
-    }));
+    // Climate + Fan combined into one "Klima" section
+    if (roomEntities.climate.length > 0 || roomEntities.fan.length > 0) {
+      const climateCards: LovelaceCardConfig[] = [
+        { type: 'heading', heading: localize('room.climate'), heading_style: 'title', icon: 'mdi:thermostat' },
+      ];
+      for (const e of roomEntities.climate) {
+        climateCards.push({
+          type: 'tile',
+          entity: e,
+          name: stripAreaName(e, area, hass),
+          features: [{ type: 'climate-hvac-modes' }],
+          features_position: 'inline',
+          vertical: false,
+          state_content: ['hvac_action', 'current_temperature'],
+        });
+      }
+      for (const e of roomEntities.fan) {
+        const state = hass.states[e];
+        const hasSpeed = state && fanSupportsSpeed(state);
+        climateCards.push({
+          type: 'tile',
+          entity: e,
+          name: stripAreaName(e, area, hass),
+          ...(hasSpeed ? { features: [{ type: 'fan-speed' }], features_position: 'inline' } : {}),
+          vertical: false,
+          state_content: 'last_changed',
+        });
+      }
+      sections.push({ type: 'grid', cards: climateCards });
+    }
 
     domainSection(roomEntities.covers, localize('room.covers'), 'mdi:window-shutter', (e) => ({
       type: 'tile',
@@ -546,18 +620,6 @@ class Simon42ViewRoomStrategy extends HTMLElement {
         vertical: false,
         state_content: 'last_changed',
       });
-    for (const e of roomEntities.fan) {
-      const state = hass.states[e];
-      const hasSpeed = state && fanSupportsSpeed(state);
-      miscCards.push({
-        type: 'tile',
-        entity: e,
-        name: stripAreaName(e, area, hass),
-        ...(hasSpeed ? { features: [{ type: 'fan-speed' }], features_position: 'inline' } : {}),
-        vertical: false,
-        state_content: 'last_changed',
-      });
-    }
     for (const e of roomEntities.switches)
       miscCards.push({
         type: 'tile',
@@ -599,38 +661,13 @@ class Simon42ViewRoomStrategy extends HTMLElement {
       vertical: false,
     }));
 
-    // Room Pins
-    const roomPinEntities: string[] = dashboardConfig.room_pin_entities || [];
-    const pinsForArea = roomPinEntities.filter((entityId) => {
-      const entity = Registry.getEntity(entityId);
-      if (!entity) return false;
-      if (entity.area_id === area.area_id) return true;
-      if (entity.device_id) {
-        const device = Registry.getDevice(entity.device_id);
-        if (device?.area_id === area.area_id) return true;
-      }
-      return false;
-    });
-
-    if (pinsForArea.length > 0) {
-      sections.push({
-        type: 'grid',
-        cards: [
-          { type: 'heading', heading: localize('room.room_pins'), heading_style: 'title', icon: 'mdi:pin' },
-          ...pinsForArea.map((e) => {
-            const pinStateContent: string[] = [];
-            if (dashboardConfig.room_pins_show_state === true) pinStateContent.push('state');
-            if (dashboardConfig.room_pins_hide_last_changed !== true) pinStateContent.push('last_changed');
-            return {
-              type: 'tile',
-              entity: e,
-              name: stripAreaName(e, area, hass),
-              vertical: false,
-              ...(pinStateContent.length > 0 ? { state_content: pinStateContent } : {}),
-            };
-          }),
-        ],
-      });
+    if (dashboardConfig.room_pins_first !== true) {
+      domainSection(
+        getAreasRoomPins(dashboardConfig, area),
+        localize('room.room_pins'),
+        'mdi:pin',
+        buildRoomPinTile(dashboardConfig, area, hass)
+      );
     }
 
     debugLog(
