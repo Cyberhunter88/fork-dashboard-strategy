@@ -121,6 +121,7 @@ class Simon42ViewRoomStrategy extends HTMLElement {
       door: [],
       smoke: [],
       gas: [],
+      heat: [],
     };
 
     // Main categorization loop — use pre-filtered visible entities from Registry
@@ -252,6 +253,10 @@ class Simon42ViewRoomStrategy extends HTMLElement {
           sensorEntities.gas.push(entityId);
           continue;
         }
+        if (deviceClass === 'heat') {
+          sensorEntities.heat.push(entityId);
+          continue;
+        }
       }
     }
 
@@ -332,14 +337,21 @@ class Simon42ViewRoomStrategy extends HTMLElement {
       [sensorEntities.absolute_humidity, 'moisture'],
       [sensorEntities.smoke, 'smoke'],
       [sensorEntities.gas, 'gas'],
+      [sensorEntities.heat, 'heat'],
     ];
     for (const [entities, colorKey] of singleTypes) {
       if (entities[0]) addCandidate(entities[0], colorKey);
     }
 
     // Window/door: show ALL matches (not just first), users control via per-area hidden[]
-    for (const id of sensorEntities.window) addCandidate(id, 'window', 'window');
-    for (const id of sensorEntities.door) addCandidate(id, 'door', 'door');
+    // Per-domain opt-out via show_window_contacts_in_rooms / show_door_contacts_in_rooms
+    // (default true — preserves prior behavior; set false to silence the badge type).
+    if (dashboardConfig.show_window_contacts_in_rooms !== false) {
+      for (const id of sensorEntities.window) addCandidate(id, 'window', 'window');
+    }
+    if (dashboardConfig.show_door_contacts_in_rooms !== false) {
+      for (const id of sensorEntities.door) addCandidate(id, 'door', 'door');
+    }
 
     // Apply per-area badge config: filter hidden, append additional
     let filteredCandidates = candidates;
