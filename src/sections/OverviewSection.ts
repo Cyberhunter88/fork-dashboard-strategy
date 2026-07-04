@@ -26,6 +26,7 @@ export interface OverviewSectionParams {
 export function createOverviewSection(data: OverviewSectionParams): LovelaceSectionConfig | null {
   const { showSearchCard, config, hass } = data;
   const showClockCard = config.show_clock_card !== false;
+  const hidden = new Set(config.hidden_section_headings || []);
 
   // Check if alarm entity is configured
   const alarmEntity = config.alarm_entity;
@@ -33,7 +34,7 @@ export function createOverviewSection(data: OverviewSectionParams): LovelaceSect
   const cards: LovelaceCardConfig[] = [];
 
   // Only show "Übersicht" heading if clock or alarm is visible
-  if (showClockCard || alarmEntity) {
+  if ((showClockCard || alarmEntity) && !hidden.has('overview')) {
     cards.push({
       type: 'heading',
       heading: localize('sections.overview'),
@@ -78,14 +79,25 @@ export function createOverviewSection(data: OverviewSectionParams): LovelaceSect
     });
   }
 
-  // Add search card if enabled
+  // Add search card if enabled. Two variants: the HACS-installed
+  // custom:search-card (default, inline input) or a native markdown hint
+  // pointing at HA's built-in global search (no external dependency).
   if (showSearchCard) {
-    cards.push({
-      type: 'custom:search-card',
-      grid_options: {
-        columns: 'full',
-      },
-    });
+    const variant = config.search_card_variant === 'tip' ? 'tip' : 'custom';
+    if (variant === 'tip') {
+      cards.push({
+        type: 'markdown',
+        content:
+          '### 🔍 ' + localize('editor.search_card_tip_title') + '\n\n' +
+          localize('editor.search_card_tip_body'),
+        grid_options: { columns: 'full' },
+      });
+    } else {
+      cards.push({
+        type: 'custom:search-card',
+        grid_options: { columns: 'full' },
+      });
+    }
   }
 
   // Summaries columns (default: 2)
@@ -129,6 +141,7 @@ export function createOverviewSection(data: OverviewSectionParams): LovelaceSect
       summary_type: 'batteries',
       areas_options: config.areas_options || {},
       hide_mobile_app_batteries: config.hide_mobile_app_batteries,
+      hide_battery_notes_entities: config.hide_battery_notes_entities,
       battery_critical_threshold: config.battery_critical_threshold,
     });
   }
@@ -143,10 +156,12 @@ export function createOverviewSection(data: OverviewSectionParams): LovelaceSect
 
   // Only show summaries heading and cards if at least one is enabled
   if (summaryCards.length > 0) {
-    cards.push({
-      type: 'heading',
-      heading: localize('sections.summaries'),
-    });
+    if (!hidden.has('summaries')) {
+      cards.push({
+        type: 'heading',
+        heading: localize('sections.summaries'),
+      });
+    }
 
     // Layout logic: adapt to number of cards
     if (summariesColumns === 4) {
@@ -167,14 +182,41 @@ export function createOverviewSection(data: OverviewSectionParams): LovelaceSect
     }
   }
 
+  // Light favorites — quick toggle row using HA's native glance card
+  const lightFavs = (config.light_favorite_entities || []).filter(
+    (id) => id.startsWith('light.') && Reflect.get(hass.states as Record<string, unknown>, id) !== undefined
+  );
+  if (lightFavs.length > 0) {
+    cards.push({
+      type: 'heading',
+      heading: localize('sections.light_favorites'),
+      icon: 'mdi:lightbulb-group',
+    });
+    cards.push({
+      type: 'glance',
+      show_name: true,
+      show_icon: true,
+      show_state: false,
+      columns: Math.min(lightFavs.length, 5),
+      entities: lightFavs.map((entityId) => ({
+        entity: entityId,
+        tap_action: { action: 'toggle' },
+        hold_action: { action: 'more-info' },
+      })),
+      grid_options: { columns: 'full' },
+    });
+  }
+
   // Favorites section
   const favoriteEntities = (config.favorite_entities || []).filter((entityId) => hass.states[entityId] !== undefined);
 
   if (favoriteEntities.length > 0) {
-    cards.push({
-      type: 'heading',
-      heading: localize('sections.favorites'),
-    });
+    if (!hidden.has('favorites')) {
+      cards.push({
+        type: 'heading',
+        heading: localize('sections.favorites'),
+      });
+    }
 
     const showState = config.favorites_show_state === true;
     const hideLastChanged = config.favorites_hide_last_changed === true;
@@ -211,14 +253,15 @@ export function createOverviewSection(data: OverviewSectionParams): LovelaceSect
 export function createCustomCardsSection(
   customCards: CustomCard[],
   heading?: string,
-  icon?: string
+  icon?: string,
+  hideHeading?: boolean
 ): LovelaceSectionConfig | null {
   const validCards = customCards.filter((c) => c.parsed_config);
   if (validCards.length === 0) return null;
 
-  const cards: LovelaceCardConfig[] = [
-    { type: 'heading', heading: heading || localize('sections.custom_cards'), icon: icon || 'mdi:cards' },
-  ];
+  const cards: LovelaceCardConfig[] = hideHeading
+    ? []
+    : [{ type: 'heading', heading: heading || localize('sections.custom_cards'), icon: icon || 'mdi:cards' }];
 
   for (const card of validCards) {
     if (Array.isArray(card.parsed_config)) {
