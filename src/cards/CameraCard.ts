@@ -5,7 +5,7 @@ import { localize } from '../utils/localize';
 interface CameraCardConfig extends LovelaceCardConfig {
   entity: string;
   name?: string;
-  entities?: Array<string | Record<string, unknown>>;
+  entities?: Array<{ entity: string }>;
   fit_mode?: 'cover' | 'contain' | 'fill';
   aspect_ratio?: string;
 }
@@ -20,6 +20,7 @@ interface CameraWindow extends Window {
   loadCardHelpers?: () => Promise<{
     createCardElement(config: LovelaceCardConfig): NativeCameraCard;
   }>;
+  customCards?: Array<{ type: string; name: string; description: string }>;
 }
 
 class Simon42CameraCard extends HTMLElement {
@@ -90,8 +91,15 @@ class Simon42CameraCard extends HTMLElement {
       const helpers = await cameraWindow.loadCardHelpers();
       return helpers.createCardElement(config);
     }
+    return config.type === 'picture-glance'
+      ? this._createFallbackCard('hui-picture-glance-card', config)
+      : this._createFallbackCard('hui-picture-entity-card', config);
+  }
 
-    const tagName = config.type === 'picture-glance' ? 'hui-picture-glance-card' : 'hui-picture-entity-card';
+  private async _createFallbackCard(
+    tagName: 'hui-picture-glance-card' | 'hui-picture-entity-card',
+    config: LovelaceCardConfig
+  ): Promise<NativeCameraCard> {
     await customElements.whenDefined(tagName);
     const card = document.createElement(tagName) as NativeCameraCard;
     card.setConfig?.(config);
@@ -142,10 +150,21 @@ class Simon42CameraCard extends HTMLElement {
 
     const button = document.createElement('button');
     button.type = 'button';
-    button.style.cssText =
-      'position:absolute;top:8px;right:8px;z-index:2;width:40px;height:40px;border:0;border-radius:50%;' +
-      'display:flex;align-items:center;justify-content:center;cursor:pointer;color:white;' +
-      'background:rgba(0,0,0,.55);backdrop-filter:blur(4px);';
+    button.style.position = 'absolute';
+    button.style.top = '8px';
+    button.style.right = '8px';
+    button.style.zIndex = '2';
+    button.style.width = '40px';
+    button.style.height = '40px';
+    button.style.border = '0';
+    button.style.borderRadius = '50%';
+    button.style.display = 'flex';
+    button.style.alignItems = 'center';
+    button.style.justifyContent = 'center';
+    button.style.cursor = 'pointer';
+    button.style.color = 'white';
+    button.style.background = 'rgba(0,0,0,.55)';
+    button.style.backdropFilter = 'blur(4px)';
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -169,8 +188,9 @@ class Simon42CameraCard extends HTMLElement {
 
 customElements.define('simon42-camera-card', Simon42CameraCard);
 
-window.customCards = window.customCards || [];
-window.customCards.push({
+const cameraWindow = window as CameraWindow;
+if (!Array.isArray(cameraWindow.customCards)) cameraWindow.customCards = [];
+cameraWindow.customCards.push({
   type: 'simon42-camera-card',
   name: 'Simon42 Camera Card',
   description: 'Native Home Assistant camera card with manual live toggle',
