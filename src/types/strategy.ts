@@ -59,6 +59,10 @@ export interface Simon42StrategyConfig {
   // Picks which built-in weather card the section renders. Use 'none' to omit
   // the built-in card and supply your own via custom_cards target=weather
   // (e.g. clock-weather-card, mini-weather, custom radar widget).
+  show_pollen_card?: boolean; // default: false — DWD Pollenflug card below
+  // the weather card (requires the HACS `dwd_pollenflug` integration;
+  // sensors discovered by platform + state_today_desc attribute, editor
+  // only offers the toggle when the integration is present)
   weather_sensors?: WeatherSensorConfig[]; // optional inline icon+value row
   // rendered at the top of the weather section. Useful for displaying local
   // outdoor sensors (temperature, humidity, wind, pressure...) alongside or
@@ -93,6 +97,32 @@ export interface Simon42StrategyConfig {
   show_battery_view?: boolean; // default: false — keep the /batteries view
   // available even when show_battery_summary is off (#315: badge deep-links)
   show_climate_summary?: boolean; // default: false
+  show_camera_view?: boolean; // default: false — opt-in CCTV view (/cameras):
+  // one block per camera device with spotlight tile, Reolink PTZ pad,
+  // recordings deep-link and optional LLM Vision event timelines
+  show_camera_events?: boolean; // default: false — LLM Vision timelines on
+  // the CCTV view. Deliberately opt-in even when LLM Vision is installed:
+  // the llmvision-card re-fetches its events API on EVERY hass update
+  // (no debounce) — three timelines can hammer HA on busy systems
+  show_cameras_in_security?: boolean; // default: false — lean camera cards
+  // in the security view (à la HA's security panel); the heading links to
+  // the CCTV view when show_camera_view is enabled
+  group_security_by_areas?: boolean; // default: false — HA-security-panel
+  // style: one stacked section per floor with per-area subtitle headings
+  // (tap → room view) and the activity log pinned as right-hand sidebar.
+  // Off = classic category layout with the activity log as a section
+  show_security_activity?: boolean; // default: true — activity log in the
+  // security view (24h logbook over security entities + persons, like
+  // HA's security panel); auto-hides when logbook is not loaded
+  security_activity_position?: 'start' | 'end'; // default: 'start' —
+  // where the activity section renders (category layout only; the
+  // area-grouped layout always uses the sidebar). Entities labeled
+  // `no_seclog` are excluded from the log while staying visible in the
+  // security sections themselves
+  hidden_cameras?: string[]; // default: [] — camera entity_ids excluded
+  // from the security AND camera (CCTV) views; room views deliberately
+  // unaffected. For hiding everywhere use the no_dboard label or the
+  // per-area camera filter
   hide_mobile_app_batteries?: boolean; // default: false
   hide_battery_notes_entities?: boolean; // default: false
   battery_critical_threshold?: number; // default: 20

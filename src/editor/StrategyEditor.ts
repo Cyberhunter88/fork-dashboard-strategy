@@ -29,6 +29,8 @@ import { SECTION_META_BY_KEY, isSectionHiddenByConfig } from '../sections/sectio
 import { validateCustomSections } from '../sections/CustomSections';
 import type { AreaRegistryEntry, EntityRegistryEntry } from '../types/registries';
 import { localize } from '../utils/localize';
+import { Registry } from '../Registry';
+import { collectCameraBlocks } from '../views/CctvViewStrategy';
 import { isBadgeCandidate, isDefaultShowName, resolveShowName } from '../utils/badge-utils';
 
 // -- Supporting types for the editor ------------------------------------
@@ -1263,6 +1265,13 @@ class Simon42DashboardStrategyEditor extends LitElement {
                   </select>
                 </div>
               ` : nothing}
+              ${key === 'weather' && showWeather && this._hasDwdPollenflug() ? html`
+                <div class="section-order-sub" style="flex-wrap: wrap;">
+                  ${this._renderCheckbox('show-pollen-card', localize('editor.show_pollen_card'), this._config.show_pollen_card === true,
+                    (checked) => this._toggleChanged('show_pollen_card', checked, false))}
+                </div>
+                <div class="description" style="margin-left: 26px;">${localize('editor.show_pollen_card_desc')}</div>
+              ` : nothing}
               ${key === 'energy' && showEnergy ? html`
                 <div class="section-order-sub">
                   <input type="checkbox" id="energy-link-dashboard"
@@ -1633,12 +1642,47 @@ class Simon42DashboardStrategyEditor extends LitElement {
           (checked) => this._toggleChanged('show_security_summary', checked, true))}
 
         <div style="margin-left: 26px; margin-bottom: 8px;">
+          ${this._renderCheckbox('show-cameras-in-security', localize('editor.show_cameras_in_security'), this._config.show_cameras_in_security === true,
+            (checked) => this._toggleChanged('show_cameras_in_security', checked, false))}
+          <div class="description">${localize('editor.show_cameras_in_security_desc')}</div>
+
+          ${this._config.show_cameras_in_security === true ? this._renderHiddenCamerasPicker() : nothing}
+
+          ${this._renderCheckbox('group-security-by-areas', localize('editor.group_security_by_areas'), this._config.group_security_by_areas === true,
+            (checked) => this._toggleChanged('group_security_by_areas', checked, false))}
+          <div class="description">${localize('editor.group_security_by_areas_desc')}</div>
+
+          ${this._renderCheckbox('show-security-activity', localize('editor.show_security_activity'), this._config.show_security_activity !== false,
+            (checked) => this._toggleChanged('show_security_activity', checked, true))}
+          <div class="description">${localize('editor.show_security_activity_desc')}</div>
+
+          ${this._config.show_security_activity !== false && this._config.group_security_by_areas !== true ? html`
+            <div style="margin-left: 26px;">
+              ${this._renderCheckbox('security-activity-at-end', localize('editor.security_activity_at_end'), this._config.security_activity_position === 'end',
+                (checked) => this._securityActivityPositionChanged(checked))}
+            </div>
+          ` : nothing}
+
           ${this._renderSecurityExtraEntitiesPicker()}
         </div>
 
         ${this._renderCheckbox('show-climate-summary', localize('editor.show_climate_summary'), showClimateSummary,
           (checked) => this._toggleChanged('show_climate_summary', checked, false))}
         <div class="description">${localize('editor.show_climate_summary_desc')}</div>
+
+        ${this._renderCheckbox('show-camera-view', localize('editor.show_camera_view'), this._config.show_camera_view === true,
+          (checked) => this._toggleChanged('show_camera_view', checked, false))}
+        <div class="description">${localize('editor.show_camera_view_desc')}</div>
+
+        <div style="margin-left: 26px; margin-bottom: 8px;">
+          ${this._renderCheckbox('show-camera-events', localize('editor.show_camera_events'), this._config.show_camera_events === true,
+            (checked) => this._toggleChanged('show_camera_events', checked, false))}
+          <div class="description">${localize('editor.show_camera_events_desc')}</div>
+
+          ${this._config.show_camera_view === true && this._config.show_cameras_in_security !== true
+            ? this._renderHiddenCamerasPicker()
+            : nothing}
+        </div>
 
         ${this._renderCheckbox('show-battery-summary', localize('editor.show_battery_summary'), showBatterySummary,
           (checked) => this._toggleChanged('show_battery_summary', checked, true))}
@@ -1708,6 +1752,73 @@ class Simon42DashboardStrategyEditor extends LitElement {
       updated.unavailable_batteries_bucket = bucket;
     }
     this._fireConfigChanged(updated);
+  }
+
+  /** DWD Pollenflug (HACS) installed? Gates the pollen card toggle. */
+  private _hasDwdPollenflug(): boolean {
+    if (!this._hass) return false;
+    return Object.values(this._hass.entities).some(function isPollenEntity(entity) {
+      return entity.platform === 'dwd_pollenflug';
+    });
+  }
+
+  private _securityActivityPositionChanged(atEnd: boolean): void {
+    const updated: Simon42StrategyConfig = { ...this._config };
+    // 'start' is the default → omit the key when matching default
+    if (atEnd) {
+      updated.security_activity_position = 'end';
+    } else {
+      delete updated.security_activity_position;
+    }
+    this._config = updated;
+    this._fireConfigChanged(updated);
+  }
+
+  private _cameraHiddenChanged(entityId: string, visible: boolean): void {
+    const hidden = new Set(this._config.hidden_cameras || []);
+    if (visible) hidden.delete(entityId);
+    else hidden.add(entityId);
+    const updated: Simon42StrategyConfig = { ...this._config };
+    if (hidden.size === 0) {
+      delete updated.hidden_cameras;
+    } else {
+      updated.hidden_cameras = [...hidden].sort();
+    }
+    this._config = updated;
+    this._fireConfigChanged(updated);
+  }
+
+  /** Per-camera visibility for the security view (security-only exclusion). */
+  private _renderHiddenCamerasPicker(): TemplateResult {
+    if (!this._hass) return html``;
+    // Same dedup as the views (one camera per device, preferred stream);
+    // Registry is initialized by the dashboard render, this is a no-op.
+    Registry.initialize(this._hass, this._config);
+    const blocks = collectCameraBlocks(this._hass, this._config);
+    if (blocks.length === 0) return html``;
+
+    const hidden = new Set(this._config.hidden_cameras || []);
+    return html`
+      <div style="margin-left: 26px; margin-bottom: 8px;">
+        <div style="font-size: 13px; font-weight: 500; color: var(--primary-text-color); margin-top: 4px; margin-bottom: 4px;">
+          ${localize('editor.security_cameras_visibility')}
+        </div>
+        <div class="description" style="margin-left: 0;">
+          ${localize('editor.security_cameras_visibility_desc')}
+        </div>
+        ${blocks.map((block) => {
+          const name =
+            (this._hass?.states[block.cameraId]?.attributes?.friendly_name as string | undefined) ||
+            block.cameraId;
+          return this._renderCheckbox(
+            `security-camera-${block.cameraId}`,
+            name,
+            !hidden.has(block.cameraId),
+            (checked) => this._cameraHiddenChanged(block.cameraId, checked)
+          );
+        })}
+      </div>
+    `;
   }
 
   private _renderSecurityExtraEntitiesPicker(): TemplateResult {

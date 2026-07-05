@@ -23,6 +23,8 @@ interface EntityFixture {
   disabled_by?: string | null;
   platform?: string;
   labels?: string[];
+  translation_key?: string | null;
+  entity_category?: 'config' | 'diagnostic' | null;
 }
 
 interface DeviceFixture {
@@ -30,6 +32,10 @@ interface DeviceFixture {
   area_id?: string | null;
   manufacturer?: string;
   model?: string;
+  name?: string | null;
+  name_by_user?: string | null;
+  primary_config_entry?: string | null;
+  config_entries?: string[];
 }
 
 interface AreaFixture {
@@ -39,11 +45,21 @@ interface AreaFixture {
   icon?: string | null;
 }
 
+interface FloorFixture {
+  floor_id: string;
+  name: string;
+  icon?: string | null;
+  level?: number | null;
+}
+
 export interface HassFixtureSpec {
   entities?: EntityFixture[];
   devices?: DeviceFixture[];
   areas?: AreaFixture[];
+  floors?: FloorFixture[];
   language?: string;
+  /** Loaded HA integrations (hass.config.components), e.g. ['logbook'] */
+  components?: string[];
 }
 
 /**
@@ -56,6 +72,7 @@ export function makeHass(spec: HassFixtureSpec = {}): HomeAssistant {
   const entities: Record<string, EntityFixture> = {};
   const devices: Record<string, DeviceFixture> = {};
   const areas: Record<string, AreaFixture> = {};
+  const floors: Record<string, FloorFixture> = {};
 
   for (const e of spec.entities ?? []) {
     const entry: EntityFixture = {
@@ -66,6 +83,8 @@ export function makeHass(spec: HassFixtureSpec = {}): HomeAssistant {
       disabled_by: e.disabled_by ?? null,
       platform: e.platform,
       labels: e.labels ?? [],
+      translation_key: e.translation_key ?? null,
+      entity_category: e.entity_category ?? null,
     };
     entities[e.entity_id] = entry;
     states[e.entity_id] = {
@@ -77,10 +96,19 @@ export function makeHass(spec: HassFixtureSpec = {}): HomeAssistant {
     };
   }
   for (const d of spec.devices ?? []) {
-    devices[d.id] = d;
+    devices[d.id] = {
+      ...d,
+      // Production device entries always carry these — default them so
+      // code under test can rely on the declared (non-optional) types.
+      config_entries: d.config_entries ?? [],
+      primary_config_entry: d.primary_config_entry ?? null,
+    };
   }
   for (const a of spec.areas ?? []) {
     areas[a.area_id] = a;
+  }
+  for (const f of spec.floors ?? []) {
+    floors[f.floor_id] = f;
   }
 
   return {
@@ -88,8 +116,10 @@ export function makeHass(spec: HassFixtureSpec = {}): HomeAssistant {
     entities,
     devices,
     areas,
+    floors,
     language: spec.language ?? 'en',
     locale: { language: spec.language ?? 'en' },
+    config: { components: spec.components ?? [] },
     // Anything else the code reads → cast-safe undefined
   } as unknown as HomeAssistant;
 }

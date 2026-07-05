@@ -8,7 +8,8 @@
     "covers": "Blinds & Covers",
     "security": "Security",
     "batteries": "Batteries",
-    "climate": "Climate"
+    "climate": "Climate",
+    "cameras": "Cameras"
   },
   "sections": {
     "overview": "Overview",
@@ -82,7 +83,15 @@
     "smoke_gas_inactive": "Smoke, Gas & Heat Detectors - No Alarm",
     "water_leak_active": "Water Leak Sensors - Alarm",
     "water_leak_inactive": "Water Leak Sensors - Dry",
-    "extra_entities": "Smart Appliances & Other"
+    "safety_active": "Safety status triggered",
+    "safety_inactive": "Safety status OK",
+    "extra_entities": "Smart Appliances & Other",
+    "cameras": "Cameras",
+    "no_area": "No area",
+    "areas": "Areas",
+    "other_areas": "Other areas",
+    "activity": "Activity",
+    "devices": "Devices"
   },
   "batteries": {
     "critical": "Critical",
@@ -96,6 +105,28 @@
     "cooling": "Cooling",
     "idle": "Idle",
     "off": "Off"
+  },
+  "cctv": {
+    "no_cameras": "No cameras found. Cameras appear here automatically once they are set up in Home Assistant.",
+    "recordings": "Recordings",
+    "ptz_up": "Up",
+    "ptz_down": "Down",
+    "ptz_left": "Left",
+    "ptz_right": "Right",
+    "ptz_stop": "Stop",
+    "ptz_zoom_in": "Zoom +",
+    "ptz_zoom_out": "Zoom -",
+    "ptz_calibrate": "Calibrate",
+    "ptz_home": "Home position",
+    "events": "Events",
+    "events_persons": "Persons",
+    "events_animals": "Animals",
+    "events_vehicles": "Vehicles"
+  },
+  "pollen": {
+    "title": "Pollen count today",
+    "tomorrow": "tomorrow",
+    "none": "No significant pollen load today. 🌿"
   },
   "room": {
     "cameras": "Cameras",
@@ -137,6 +168,8 @@
     "no_weather_sensors": "No sensors configured. Use the picker below to add one.",
     "weather_entity": "Weather entity:",
     "weather_entity_auto": "Auto-detect (first available)",
+    "show_pollen_card": "Show pollen card (DWD)",
+    "show_pollen_card_desc": "Shows the current pollen load (today + tomorrow) below the weather card. Uses the DWD Pollenflug integration from HACS.",
     "hide_section_headings": "Hide section headings",
     "hide_section_headings_desc": "Hides individual section headings on the overview. Useful for compact mobile layouts where the headings add visual noise.",
     "heading_label_overview": "Hide \"Overview\" heading",
@@ -201,10 +234,23 @@
     "group_covers_by_floors": "Group covers by floors",
     "group_covers_by_floors_desc": "Groups covers in the covers view by floors. Each floor gets its own subsection with its name as heading. Applies to the main covers group; awnings and windows remain unsplit.",
     "show_security_summary": "Show security summary",
+    "show_cameras_in_security": "Show cameras in the security view",
+    "show_cameras_in_security_desc": "Shows the cameras as compact still-image cards in the security view (like the Home Assistant security panel). When the camera view is enabled, the cameras heading links straight to it.",
+    "security_cameras_visibility": "Cameras shown",
+    "security_cameras_visibility_desc": "Unchecked cameras disappear from the security and camera views — room views are unaffected.",
+    "group_security_by_areas": "Group security view by areas (recommended)",
+    "group_security_by_areas_desc": "Builds the security view like the Home Assistant security panel: all areas stacked (grouped by floors), area headings link to the room views, and the activity log sits as a sidebar on the right.",
+    "show_security_activity": "Show activity log (recommended)",
+    "show_security_activity_desc": "Shows a 24h logbook of all security entities and persons next to the security view (like the Home Assistant security panel). Renders as its own tab on narrow screens. Requires the logbook integration. Entities labeled \"no_seclog\" stay visible in the view but are excluded from the log (e.g. interior door contacts).",
+    "security_activity_at_end": "Move activity log to the end",
     "security_extra_entities": "Extra entities in Security view",
     "security_extra_entities_desc": "Pick any extra entities (smart appliances, custom sensors, etc.) to show as tiles at the bottom of the Security view. Useful for ovens, cooktops, irons — anything you want a glance at before leaving the house.",
     "show_climate_summary": "Show climate summary",
     "show_climate_summary_desc": "Shows the climate summary card on the overview. Counts active thermostats and climate devices.",
+    "show_camera_view": "Enable camera view (CCTV) — experimental",
+    "show_camera_view_desc": "Under active development, details may still change. Generates a dedicated camera view: live picture, spotlight, PTZ controls and recordings link (Reolink) per camera.",
+    "show_camera_events": "Show LLM Vision event timelines",
+    "show_camera_events_desc": "Person/animal/vehicle timelines at the end of the camera view (requires LLM Vision + llmvision-card). Note: the card re-fetches its events on every state change — on busy systems this can create noticeable load.",
     "show_battery_summary": "Show battery summary",
     "hide_mobile_app_batteries": "Hide mobile app batteries",
     "hide_mobile_app_batteries_desc": "Hides batteries from smartphones, tablets, and watches (Mobile App) from the battery overview and summary.",

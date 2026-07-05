@@ -59,11 +59,14 @@ Wenn dir die simon42 Dashboard Strategy hilft, unterstütze die Weiterentwicklun
 - **Etagen-Gruppierung** — Bereiche, Lichter und Rollos optional nach Etagen gliedern
 - **Favoriten** — Beliebige Entitäten als Kacheln auf der Übersicht anpinnen
 - **Alarm-Panel** — Optionale Alarmanlage neben der Uhr
-- **Granulare Filterung** — Per Label (`no-dboard`), pro Bereich, pro Domain, pro Entity
+- **Granulare Filterung** — Per Label (`no-dboard` fürs Dashboard, `no_seclog` fürs Sicherheits-Logbuch), pro Bereich, pro Domain, pro Entity
 - **Teiloffene Rollos** — Optionale dritte Gruppe (Offen / Teiloffen / Geschlossen) mit Live-Übergängen
 - **Alert-Icons** — Optionale Alert-Badges auf Bereichskarten (Bewegung, Feuchtigkeit, Rauch, Wärme u.a.)
 - **Rauch-, Gas- & Hitzemelder** — In der Sicherheits-Übersicht, im Security-Summary-Count und als Badges in Raum-Views
 - **Wetter flexibel** — Wetter-Entität wählbar, Darstellung umschaltbar (Forecast täglich/stündlich, Tile, eigene Karte), eigene Außensensoren als Inline-Zeile *(ab v1.4.0)*
+- **Sicherheits-Ansicht im HA-Style** — Alle Bereiche untereinander (nach Etagen), Aktivitäts-Verlauf (24h-Logbuch) als Seitenleiste oder Section, Kameras opt-in *(ab v1.4.0)*
+- **Kamera-Ansicht (CCTV, experimentell)** — Opt-in View mit allen Kameras: Scheinwerfer-Steuerung, PTZ-Steuerkreuz und Aufnahmen-Link (Reolink), LLM Vision Ereignis-Timelines *(ab v1.4.0)*
+- **Pollenflug-Karte (DWD)** — Aktuelle Pollenbelastung unter der Wetterkarte, automatisch erkannt via HACS-Integration *(ab v1.4.0)*
 - **Batch-Aktionen** — Heading-Badges für Gruppensteuerung (alle ein/aus, alle öffnen/schließen)
 - **Automationen & Skripte in Räumen** — Bereichs-zugeordnete Automationen und Skripte in Raum-Views anzeigen
 - **Eigene Karten** — Beliebige Karten via YAML auf der Übersicht einbinden, Ziel-Section frei wählbar
@@ -267,6 +270,20 @@ strategy:
 
 **Kameras in Räumen** *(ab v1.4.0)* — Kamera-Streams in den Raum-Views sind standardmäßig an und können per Toggle deaktiviert werden.
 
+**Aktivitäts-Verlauf in der Sicherheits-Ansicht** *(ab v1.4.0)* — Wie im Home Assistant Security-Panel zeigt ein 24-Stunden-Logbuch die Aktivität aller Sicherheits-Entitäten und Personen. Die Darstellung folgt dem Layout der Ansicht: Im **Kategorien-Modus** (Standard) erscheint der Verlauf als normale Section an erster Stelle (per Checkbox alternativ ans Ende). Im **HA-Style-Modus** (`group_security_by_areas`) stehen alle Bereiche wie im Home Assistant Security-Panel untereinander — nach Etagen gruppiert, Bereichs-Überschriften führen in die Raum-Ansicht — und der Verlauf hängt als Seitenleiste rechts daneben (eigener Tab auf schmalen Bildschirmen). Entitäten mit dem Label **`no_seclog`** bleiben in der Ansicht sichtbar, tauchen aber nicht im Verlauf auf — z.B. innenliegende Türkontakte, deren Historie dort nur Rauschen wäre. Standardmäßig an; entfällt automatisch, wenn die Logbuch-Integration nicht geladen ist, und lässt sich per `show_security_activity: false` abschalten. Einzelne Kameras lassen sich zusätzlich für die **Sicherheits- und Kamera-Ansicht** abwählen (`hidden_cameras`, Checkboxen im Editor) — die Raum-Ansichten bleiben davon unberührt.
+
+**Kameras in der Sicherheits-Ansicht** *(ab v1.4.0)* — Mit `show_cameras_in_security` erscheinen die Kameras als kompakte Standbild-Karten in der Sicherheits-Ansicht — dem Vorbild von Home Assistants Security-Panel folgend (dort gehören Kameras zu Alarm, Schlössern und Kontakten). Die Sicherheits-Ansicht erfasst außerdem dieselben Melder-Klassen wie HAs Panel — inklusive Sicherheitsstatus-Sensoren (`safety`, z.B. von Versatile Thermostat), Manipulations- (`tamper`) und CO-Meldern. Einzelne Kameras blendet man wie gewohnt aus (Label `no-dboard` oder die Kamera-Gruppe im Bereichs-Editor — wirkt überall).
+
+**Kamera-Ansicht (CCTV)** *(ab v1.4.0, **experimentell** — Details können sich noch ändern)* — Eine eigene Ansicht (`/cameras`, opt-in via `show_camera_view`) mit einem Block pro Kamera-**Gerät**:
+
+- **Kamerabild** — bei mehreren Streams pro Gerät (Reolink: Klar-/Standardauflösung) wird automatisch die Standardauflösung gewählt (bandbreitenschonend). Kein Live-Zwang: Standbilder mit Klick für Live-Stream.
+- **Scheinwerfer** — hat das Kamera-Gerät ein Licht, erscheint darunter eine Kachel (mit Helligkeitsregler, wenn unterstützt).
+- **PTZ-Steuerkreuz** — bei Reolink-PTZ-Kameras werden die Steuer-Buttons (Auf/Ab/Links/Rechts/Stopp, Zoom, Kalibrieren, Startposition) automatisch erkannt und als Steuerkreuz gerendert. Es erscheinen nur Buttons, die das Gerät wirklich hat.
+- **Aufnahmen** — bei Reolink-Kameras führt ein Button direkt zu den Aufnahmen der Kamera im HA-Medienbrowser (bei NVRs mit mehreren Kanälen zur Reolink-Übersicht, falls der Kanal nicht eindeutig zuordenbar ist).
+- **Ereignis-Timelines** *(separater Toggle `show_camera_events`, Standard aus)* — mit [LLM Vision](https://llmvision.org) samt Timeline-Karte lassen sich drei Timelines (Personen / Tiere / Fahrzeuge) am Ende der Ansicht einblenden. **Hinweis:** Die llmvision-card fragt ihre Ereignisse bei jeder Zustandsänderung neu ab — auf Systemen mit vielen Entitäten kann das spürbare Last erzeugen, daher bewusst opt-in.
+
+Einzelne Kameras lassen sich wie üblich ausblenden (Label `no-dboard` oder Bereichs-Editor).
+
 **Raum-Sichtbarkeit** *(ab v1.4.0)* — Einzelne Raum-Views (inkl. Navigations-Tab) können an einen Entity-Zustand geknüpft werden (`room_visibility`) — z.B. Gästezimmer nur bei aktiviertem Gäste-Modus. Die Bereichskarte auf der Übersicht bleibt davon unberührt.
 
 **Ansichten** — Summary-Views (Lichter, Rollos, etc.) und Raum-Views können optional in der oberen Navigation angezeigt werden.
@@ -430,9 +447,16 @@ Die Spalte **Seit** gibt an, ab welcher Version die Option verfügbar ist. „�
 | `show_covers_summary` | boolean | `true` | — | Rollo-Zusammenfassung |
 | `show_partially_open_covers` | boolean | `false` | — | Teiloffene Rollos separat anzeigen |
 | `show_security_summary` | boolean | `true` | — | Sicherheits-Zusammenfassung |
+| `show_cameras_in_security` | boolean | `false` | v1.4.0 | Kameras als kompakte Karten in der Sicherheits-Ansicht (Überschrift verlinkt zur Kamera-Ansicht, falls aktiviert) |
+| `group_security_by_areas` | boolean | `false` | v1.4.0 | HA-Style-Layout: alle Bereiche untereinander (nach Etagen), Aktivität als Seitenleiste |
+| `show_security_activity` | boolean | `true` | v1.4.0 | Aktivitäts-Verlauf (24h-Logbuch) in der Sicherheits-Ansicht; entfällt automatisch ohne Logbuch-Integration |
+| `security_activity_position` | `start` \| `end` | `start` | v1.4.0 | Aktivitäts-Section an erster (Standard) oder letzter Stelle (nur Kategorien-Modus) |
+| `hidden_cameras` | string[] | `[]` | v1.4.0 | Kameras aus Sicherheits- UND Kamera-Ansicht ausblenden (Checkboxen im Editor; Raum-Ansichten unberührt) |
 | `show_climate_summary` | boolean | `false` | — | Klima-Zusammenfassung |
 | `show_battery_summary` | boolean | `true` | — | Batterie-Zusammenfassung |
 | `show_battery_view` | boolean | `false` | v1.4.0 | Batterie-Unterseite (/batteries) auch ohne Batterie-Zusammenfassung bereitstellen |
+| `show_camera_view` | boolean | `false` | v1.4.0 | **Experimentell:** Kamera-Ansicht (/cameras) mit Scheinwerfer, PTZ-Steuerung und Aufnahmen-Link (siehe unten) |
+| `show_camera_events` | boolean | `false` | v1.4.0 | LLM Vision Ereignis-Timelines in der Kamera-Ansicht (Last-Hinweis siehe unten) |
 | `summaries_columns` | 2 \| 4 | `2` | — | Spalten-Layout der Zusammenfassungen |
 | `favorite_entities` | string[] | `[]` | — | Favoriten-Entitäten auf der Übersicht |
 | `favorites_show_state` | boolean | `false` | — | Zustand auf Favoriten-Kacheln anzeigen |
@@ -450,6 +474,7 @@ Die Spalte **Seit** gibt an, ab welcher Version die Option verfügbar ist. „�
 | `weather_entity` | string | auto | v1.4.0 | Explizite Wetter-Entität (Standard: automatische Erkennung) |
 | `weather_presentation` | string | `forecast_daily` | v1.4.0 | Darstellung: `forecast_daily`, `forecast_hourly`, `forecast_twice_daily`, `tile`, `none` |
 | `show_weather_forecast_card` | boolean | `true` | v1.4.0 | Legacy — durch `weather_presentation` abgelöst, wird weiter berücksichtigt |
+| `show_pollen_card` | boolean | `false` | v1.4.0 | DWD-Pollenflug-Karte unter der Wetterkarte (benötigt die HACS-Integration DWD Pollenflug; Toggle erscheint nur, wenn sie installiert ist) |
 | `weather_sensors` | object[] | `[]` | v1.4.0 | Inline Icon+Wert-Zeile oben in der Wetter-Section (siehe oben) |
 | `show_energy` | boolean | `true` | — | Energie-Section |
 | `show_energy_distribution_card` | boolean | `true` | v1.4.0 | Eingebaute `energy-distribution`-Karte. Auf `false` für komplett eigene Energie-Section |
