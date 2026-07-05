@@ -17,6 +17,7 @@ import { Registry } from '../Registry';
 import { timeStart, timeEnd, debugLog } from '../utils/debug';
 import { localize } from '../utils/localize';
 import { BADGE_COLOR_MAP, getColorForEntity, isDefaultShowName, resolveShowName } from '../utils/badge-utils';
+import { uniqueEntitiesById } from '../utils/entity-utils';
 
 // HA supported_features bitmask values
 const FAN_SET_SPEED = 1;
@@ -134,7 +135,7 @@ class Simon42ViewRoomStrategy extends HTMLElement {
 
     // Main categorization loop — use pre-filtered visible entities from Registry
     // (no hidden, no_dboard, config/diagnostic, config-hidden)
-    const visibleEntities = Registry.getVisibleEntitiesForArea(area.area_id);
+    const visibleEntities = uniqueEntitiesById(Registry.getVisibleEntitiesForArea(area.area_id));
 
     // Filter unavailable entities from per-room domain lists / sensor badges.
     // Default true: unavailable items are noise in a room view (offline devices,
