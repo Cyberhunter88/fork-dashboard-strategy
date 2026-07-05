@@ -232,6 +232,7 @@ export interface Simon42StrategyConfig {
 export interface AreasDisplay {
   hidden?: string[];
   order?: string[];
+  nav_items?: string[];
 }
 
 export interface AreaOptions {

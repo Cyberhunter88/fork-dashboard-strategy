@@ -483,6 +483,29 @@ class Simon42DashboardStrategyEditor extends LitElement {
       margin-right: 12px;
       color: var(--secondary-text-color);
     }
+    .nav-pin-button {
+      background: none;
+      border: none;
+      color: var(--secondary-text-color);
+      cursor: pointer;
+      padding: 4px;
+      margin-right: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+    .nav-pin-button.pinned {
+      color: var(--primary-color);
+    }
+    .nav-pin-button:hover:not(:disabled) {
+      background: var(--secondary-background-color);
+    }
+    .nav-pin-button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
     .expand-button {
       background: none;
       border: none;
@@ -2391,6 +2414,7 @@ class Simon42DashboardStrategyEditor extends LitElement {
     const allAreas = Object.values(this._hass!.areas).sort((a, b) => a.name.localeCompare(b.name));
     const hiddenAreas = this._config.areas_display?.hidden || [];
     const areaOrder = this._config.areas_display?.order || [];
+    const navItems = this._config.areas_display?.nav_items || [];
 
     return html`
       <div class="section">
@@ -2459,7 +2483,7 @@ class Simon42DashboardStrategyEditor extends LitElement {
         </div>
 
         <div class="area-list" id="area-list">
-          ${this._renderAreaItems(allAreas, hiddenAreas, areaOrder)}
+          ${this._renderAreaItems(allAreas, hiddenAreas, areaOrder, navItems)}
         </div>
 
         <details style="margin-top: 12px;">
@@ -2916,7 +2940,8 @@ class Simon42DashboardStrategyEditor extends LitElement {
   private _renderAreaItems(
     allAreas: AreaRegistryEntry[],
     hiddenAreas: string[],
-    areaOrder: string[]
+    areaOrder: string[],
+    navItems: string[]
   ): TemplateResult | TemplateResult[] {
     if (allAreas.length === 0) {
       return html`<div class="empty-state">${localize('editor.no_areas')}</div>`;
@@ -2935,6 +2960,7 @@ class Simon42DashboardStrategyEditor extends LitElement {
       const isHidden = hiddenAreas.includes(area.area_id);
       const isExpanded = this._expandedAreas.has(area.area_id);
       const cachedData = this._areaEntitiesCache.get(area.area_id);
+      const isPinned = navItems.includes(area.area_id);
 
       return html`
         <div class="area-item"
@@ -2953,6 +2979,12 @@ class Simon42DashboardStrategyEditor extends LitElement {
               @change=${(e: Event) => this._areaVisibilityChanged(area.area_id, (e.target as HTMLInputElement).checked)} />
             <span class="area-name">${area.name}</span>
             ${area.icon ? html`<ha-icon class="area-icon" icon=${area.icon}></ha-icon>` : nothing}
+            <button class="nav-pin-button ${isPinned ? 'pinned' : ''}"
+              title="${localize('editor.area_pin_nav')}"
+              ?disabled=${isHidden}
+              @click=${(e: Event) => { e.stopPropagation(); this._areaNavPinChanged(area.area_id, !isPinned); }}>
+              <ha-icon icon="${isPinned ? 'mdi:pin' : 'mdi:pin-outline'}"></ha-icon>
+            </button>
             <button class="expand-button ${isExpanded ? 'expanded' : ''}"
               data-area-id=${area.area_id}
               ?disabled=${isHidden}
@@ -3994,6 +4026,27 @@ class Simon42DashboardStrategyEditor extends LitElement {
     if (newConfig.areas_display && Object.keys(newConfig.areas_display).length === 0) {
       delete newConfig.areas_display;
     }
+
+    this._config = newConfig;
+    this._fireConfigChanged(newConfig);
+  }
+
+  private _areaNavPinChanged(areaId: string, isPinned: boolean): void {
+    let navItems = [...(this._config.areas_display?.nav_items || [])];
+
+    if (isPinned) {
+      if (!navItems.includes(areaId)) navItems.push(areaId);
+    } else {
+      navItems = navItems.filter((id) => id !== areaId);
+    }
+
+    const newConfig: Simon42StrategyConfig = {
+      ...this._config,
+      areas_display: { ...this._config.areas_display, nav_items: navItems },
+    };
+
+    if (newConfig.areas_display?.nav_items?.length === 0) delete newConfig.areas_display.nav_items;
+    if (newConfig.areas_display && Object.keys(newConfig.areas_display).length === 0) delete newConfig.areas_display;
 
     this._config = newConfig;
     this._fireConfigChanged(newConfig);
