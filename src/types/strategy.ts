@@ -45,6 +45,45 @@ export const ALL_HEADING_KEYS: HeadingKey[] = [
   'energy',
 ];
 
+// -- Stack Ordering (per-area room view) ------------------------------
+
+export type StackKey =
+  | 'ups'
+  | 'energy'
+  | 'cameras'
+  | 'lights'
+  | 'locks'
+  | 'climate'
+  | 'covers'
+  | 'covers_curtain'
+  | 'covers_window'
+  | 'media'
+  | 'scenes'
+  | 'vacuums'
+  | 'misc'
+  | 'automations'
+  | 'scripts'
+  | 'room_pins';
+
+export const DEFAULT_STACKS_ORDER: StackKey[] = [
+  'ups',
+  'energy',
+  'cameras',
+  'lights',
+  'locks',
+  'climate',
+  'covers',
+  'covers_curtain',
+  'covers_window',
+  'media',
+  'scenes',
+  'vacuums',
+  'misc',
+  'automations',
+  'scripts',
+  'room_pins',
+];
+
 // -- Main Strategy Config ---------------------------------------------
 
 export interface Simon42StrategyConfig {
@@ -133,6 +172,8 @@ export interface Simon42StrategyConfig {
   show_vacuums_section_in_rooms?: boolean; // default: false (vacuums & mowers stay under Misc, like HA's areas strategy)
   show_automations_in_rooms?: boolean; // default: false
   show_scripts_in_rooms?: boolean; // default: false
+  show_ups_in_rooms?: boolean; // default: false (opt-in, #310 section convention)
+  show_energy_in_rooms?: boolean; // default: false (opt-in — power/energy/water/gas sensors as own room block)
   show_cameras_in_rooms?: boolean; // default: true
   show_window_contacts_in_rooms?: boolean; // default: true (opt-out — set false to hide window contact badges)
   show_door_contacts_in_rooms?: boolean; // default: true (opt-out — set false to hide door contact badges)
@@ -140,6 +181,7 @@ export interface Simon42StrategyConfig {
   show_alerts_on_areas?: boolean; // default: false
   show_window_alerts_on_areas?: boolean; // default: false
   energy_link_dashboard?: boolean; // default: true
+  hide_unavailable_entities?: boolean; // default: false
   /**
    * Per-section conditional visibility. Keyed by SectionKey. When set, the
    * section is only rendered when hass.states[entity].state === state.
@@ -180,6 +222,7 @@ export interface Simon42StrategyConfig {
   sections_order?: SectionOrderKey[]; // default: DEFAULT_SECTIONS_ORDER + custom keys
   summaries_columns?: 2 | 4; // default: 2
   hidden_section_headings?: HeadingKey[]; // default: []
+  dense_section_placement?: boolean; // default: false — fill grid gaps in all generated sections views
 
   // Favorites display
   favorites_show_state?: boolean; // default: false
@@ -225,12 +268,14 @@ export interface Simon42StrategyConfig {
 export interface AreasDisplay {
   hidden?: string[];
   order?: string[];
+  nav_items?: string[];
 }
 
 export interface AreaOptions {
   groups_options?: Record<string, GroupOptions>;
   /** User-declared sections for this area's room view (top/bottom) */
   custom_sections?: AreaCustomSection[];
+  stacks_order?: StackKey[]; // default: DEFAULT_STACKS_ORDER
 }
 
 export interface GroupOptions {
@@ -391,6 +436,8 @@ export interface RoomEntities {
   automations: string[];
   scripts: string[];
   cameras: string[];
+  ups: string[];
+  energy: string[];
   [key: string]: string[];
 }
 

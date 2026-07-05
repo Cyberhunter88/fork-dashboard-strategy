@@ -24,6 +24,7 @@ const modulesPromise = Promise.all([
   import('./cards/SummaryCard'),
   import('./cards/LightsGroupCard'),
   import('./cards/CoversGroupCard'),
+  import('./cards/CameraCard'),
   import('./views/OverviewViewStrategy'),
   import('./views/LightsViewStrategy'),
   import('./views/CoversViewStrategy'),
@@ -59,6 +60,7 @@ class Simon42DashboardStrategy extends HTMLElement {
     const { Registry } = await import('./Registry');
     const { getVisibleAreasFromHass } = await import('./utils/name-utils');
     const { localize } = await import('./utils/localize');
+    const { withUnavailableEntitiesHidden } = await import('./utils/availability-utils');
     t('imports done');
 
     const getStrategy = (tag: string): any => customElements.get(tag);
@@ -82,6 +84,7 @@ class Simon42DashboardStrategy extends HTMLElement {
 
     const showSummaryViews = config.show_summary_views === true;
     const showRoomViews = config.show_room_views === true;
+    const navItems = new Set(config.areas_display?.nav_items || []);
     const showLights = config.show_light_summary !== false;
     const showCovers = config.show_covers_summary !== false;
     const showSecurity = config.show_security_summary !== false;
@@ -163,15 +166,20 @@ class Simon42DashboardStrategy extends HTMLElement {
         title: area.name,
         path: area.area_id,
         icon: area.icon || 'mdi:floor-plan',
-        subview: !showRoomViews,
+        subview: !showRoomViews && !navItems.has(area.area_id),
         ...roomConfigs[i],
       })),
     ];
 
+    // hide_unavailable_entities only touches GENERATED views — custom_views
+    // are user YAML passthrough and stay untouched (same contract as
+    // custom_sections/custom_cards: the card YAML is the user's).
+    const generatedViews = views.map((view) => withUnavailableEntitiesHidden(view, config));
+
     const customViews = config.custom_views || [];
     for (const cv of customViews) {
       if (cv.parsed_config && cv.title && cv.path) {
-        views.push({
+        generatedViews.push({
           ...cv.parsed_config,
           title: cv.title,
           path: cv.path,
@@ -180,11 +188,11 @@ class Simon42DashboardStrategy extends HTMLElement {
       }
     }
 
-    t(`generate() done — ${views.length} views`);
+    t(`generate() done — ${generatedViews.length} views`);
 
     return {
       title: localize('dashboard.title'),
-      views,
+      views: generatedViews,
     };
   }
 
