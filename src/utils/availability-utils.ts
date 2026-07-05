@@ -1,5 +1,6 @@
 import type { HomeAssistant } from '../types/homeassistant';
 import type {
+  LovelaceBadgeConfig,
   LovelaceCardConfig,
   LovelaceCondition,
   LovelaceSectionConfig,
@@ -23,6 +24,27 @@ const HALF_WIDTH_TILE_DOMAINS = new Set([
   'sensor',
   'switch',
 ]);
+
+type EntityReferenceConfig = {
+  entity?: unknown;
+};
+
+type GridAwareConfig = EntityReferenceConfig & {
+  grid_options?: unknown;
+  type?: unknown;
+  features?: unknown;
+};
+
+type AvailabilityAwareCardConfig = LovelaceCardConfig & {
+  camera_image?: unknown;
+  entities?: unknown;
+  cards?: unknown;
+  card?: unknown;
+  badges?: unknown;
+  features?: unknown;
+};
+
+type AvailabilityAwareBadgeConfig = Partial<LovelaceBadgeConfig> & EntityReferenceConfig;
 
 export function shouldHideUnavailableEntities(
   config?: Pick<Simon42StrategyConfig, 'hide_unavailable_entities'>
@@ -63,7 +85,10 @@ function anyEntityAvailableVisibility(entities: string[]): LovelaceCondition[] {
   ];
 }
 
-function getStableGridOptions(config: Record<string, any>, entity: string): Pick<LovelaceCardConfig, 'grid_options'> {
+function getStableGridOptions(
+  config: GridAwareConfig,
+  entity: string
+): Pick<LovelaceCardConfig, 'grid_options'> {
   if (config.grid_options || config.type !== 'tile') return {};
   if (Array.isArray(config.features) && config.features.length > 0) return {};
 
@@ -77,7 +102,7 @@ function getStableGridOptions(config: Record<string, any>, entity: string): Pick
   };
 }
 
-function withAvailabilityVisibility<T extends Record<string, any>>(config: T): T {
+function withAvailabilityVisibility<T extends EntityReferenceConfig & { visibility?: unknown }>(config: T): T {
   const entity = config.entity;
   if (typeof entity !== 'string' || entity.length === 0) return config;
 
@@ -107,31 +132,38 @@ function collectEntityIdsFromValue(entityIds: Set<string>, value: unknown): void
   }
   if (typeof value !== 'object') return;
 
-  const config = value as Record<string, any>;
+  const config = value as EntityReferenceConfig;
   addEntityId(entityIds, config.entity);
 }
 
 function collectEntityIdsFromCard(card: LovelaceCardConfig): string[] {
   const entityIds = new Set<string>();
+  const availabilityCard = card as AvailabilityAwareCardConfig;
 
-  addEntityId(entityIds, card.entity);
-  addEntityId(entityIds, card.camera_image);
-  collectEntityIdsFromValue(entityIds, card.entities);
+  addEntityId(entityIds, availabilityCard.entity);
+  addEntityId(entityIds, availabilityCard.camera_image);
+  collectEntityIdsFromValue(entityIds, availabilityCard.entities);
 
-  if (Array.isArray(card.cards)) {
-    for (const child of card.cards) {
+  if (Array.isArray(availabilityCard.cards)) {
+    for (const child of availabilityCard.cards) {
       for (const entityId of collectEntityIdsFromCard(child as LovelaceCardConfig)) entityIds.add(entityId);
     }
   }
 
-  if (card.card && typeof card.card === 'object' && !Array.isArray(card.card)) {
-    for (const entityId of collectEntityIdsFromCard(card.card as LovelaceCardConfig)) entityIds.add(entityId);
+  if (
+    availabilityCard.card &&
+    typeof availabilityCard.card === 'object' &&
+    !Array.isArray(availabilityCard.card)
+  ) {
+    for (const entityId of collectEntityIdsFromCard(availabilityCard.card as LovelaceCardConfig)) {
+      entityIds.add(entityId);
+    }
   }
 
-  if (Array.isArray(card.badges)) {
-    for (const badge of card.badges) {
+  if (Array.isArray(availabilityCard.badges)) {
+    for (const badge of availabilityCard.badges) {
       if (!badge || typeof badge !== 'object' || Array.isArray(badge)) continue;
-      addEntityId(entityIds, (badge as Record<string, any>).entity);
+      addEntityId(entityIds, (badge as AvailabilityAwareBadgeConfig).entity);
     }
   }
 
@@ -142,15 +174,12 @@ function isDecorativeSectionCard(card: LovelaceCardConfig): boolean {
   return card.type === 'heading';
 }
 
-function shouldApplySectionAvailability(
-  cards: LovelaceCardConfig[],
-  entityIdsByCard: string[][]
-): boolean {
+function shouldApplySectionAvailability(cards: Array<{ card: LovelaceCardConfig; entityIds: string[] }>): boolean {
   let contentCardCount = 0;
-  for (let i = 0; i < cards.length; i++) {
-    if (isDecorativeSectionCard(cards[i])) continue;
+  for (const { card, entityIds } of cards) {
+    if (isDecorativeSectionCard(card)) continue;
     contentCardCount++;
-    if (entityIdsByCard[i].length === 0) return false;
+    if (entityIds.length === 0) return false;
   }
   return contentCardCount > 0;
 }
@@ -160,12 +189,15 @@ function applyToSection(section: LovelaceSectionConfig): LovelaceSectionConfig {
 
   const originalCards = section.cards;
   const cards = originalCards.map((card) => applyToCard(card));
-  const entityIdsByCard = originalCards.map((card) => collectEntityIdsFromCard(card));
-  const entityIds = entityIdsByCard.flat();
+  const cardsWithEntityIds = originalCards.map((card) => ({
+    card,
+    entityIds: collectEntityIdsFromCard(card),
+  }));
+  const entityIds = cardsWithEntityIds.flatMap(({ entityIds: cardEntityIds }) => cardEntityIds);
 
   return {
     ...section,
-    ...(shouldApplySectionAvailability(originalCards, entityIdsByCard)
+    ...(shouldApplySectionAvailability(cardsWithEntityIds)
       ? {
           visibility: [
             ...((Array.isArray(section.visibility) ? section.visibility : []) as LovelaceCondition[]),
@@ -178,7 +210,7 @@ function applyToSection(section: LovelaceSectionConfig): LovelaceSectionConfig {
 }
 
 function applyToCard(card: LovelaceCardConfig): LovelaceCardConfig {
-  let next: LovelaceCardConfig = card;
+  let next: AvailabilityAwareCardConfig = card as AvailabilityAwareCardConfig;
 
   if (Array.isArray(next.cards)) {
     next = {
@@ -197,7 +229,7 @@ function applyToCard(card: LovelaceCardConfig): LovelaceCardConfig {
   if (Array.isArray(next.badges)) {
     next = {
       ...next,
-      badges: next.badges.map((badge: any) => {
+      badges: next.badges.map((badge: string | Partial<LovelaceBadgeConfig>) => {
         if (!badge || typeof badge !== 'object' || Array.isArray(badge)) return badge;
         return withAvailabilityVisibility(badge);
       }),
@@ -241,6 +273,10 @@ export function isEntityCurrentlyAvailable(
   entityId: string,
   config?: Pick<Simon42StrategyConfig, 'hide_unavailable_entities'>
 ): boolean {
-  const state = hass?.states[entityId]?.state;
+  const states = hass?.states;
+  const state =
+    states && Object.prototype.hasOwnProperty.call(states, entityId)
+      ? Reflect.get(states, entityId)?.state
+      : undefined;
   return !shouldHideUnavailableEntities(config) || !isUnavailableState(state);
 }
