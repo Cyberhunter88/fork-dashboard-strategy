@@ -139,7 +139,7 @@ function hasOwnState(
   states: HomeAssistant['states'] | undefined,
   entityId: string
 ): states is NonNullable<HomeAssistant['states']> {
-  return !!states && Object.prototype.hasOwnProperty.call(states, entityId);
+  return !!states && Object.keys(states).some((stateId) => stateId === entityId);
 }
 
 function getEntityStateValue(
