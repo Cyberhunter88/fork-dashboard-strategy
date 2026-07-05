@@ -91,6 +91,9 @@
     "battery_one": "Batterie",
     "battery_many": "Batterien"
   },
+  "ups": {
+    "battery": "Akku"
+  },
   "climate": {
     "heating": "Heizen",
     "cooling": "Kühlen",

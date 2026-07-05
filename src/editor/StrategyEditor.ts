@@ -4300,6 +4300,8 @@ async function getAreaGroupedEntities(areaId: string, hass: HomeAssistant): Prom
     automations: [],
     scripts: [],
     cameras: [],
+    ups: [],
+    energy: [],
   };
 
   const excludeLabels = entities

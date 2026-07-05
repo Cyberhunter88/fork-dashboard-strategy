@@ -45,6 +45,43 @@ export const ALL_HEADING_KEYS: HeadingKey[] = [
   'energy',
 ];
 
+// -- Stack Ordering (per-area room view) ------------------------------
+
+export type StackKey =
+  | 'ups'
+  | 'energy'
+  | 'cameras'
+  | 'lights'
+  | 'locks'
+  | 'climate'
+  | 'covers'
+  | 'covers_curtain'
+  | 'covers_window'
+  | 'media'
+  | 'scenes'
+  | 'misc'
+  | 'automations'
+  | 'scripts'
+  | 'room_pins';
+
+export const DEFAULT_STACKS_ORDER: StackKey[] = [
+  'ups',
+  'energy',
+  'cameras',
+  'lights',
+  'locks',
+  'climate',
+  'covers',
+  'covers_curtain',
+  'covers_window',
+  'media',
+  'scenes',
+  'misc',
+  'automations',
+  'scripts',
+  'room_pins',
+];
+
 // -- Main Strategy Config ---------------------------------------------
 
 export interface Simon42StrategyConfig {
@@ -102,6 +139,7 @@ export interface Simon42StrategyConfig {
   show_locks_in_rooms?: boolean; // default: false
   show_automations_in_rooms?: boolean; // default: false
   show_scripts_in_rooms?: boolean; // default: false
+  show_ups_in_rooms?: boolean; // default: true (opt-out)
   show_cameras_in_rooms?: boolean; // default: true
   show_window_contacts_in_rooms?: boolean; // default: true (opt-out — set false to hide window contact badges)
   show_door_contacts_in_rooms?: boolean; // default: true (opt-out — set false to hide door contact badges)
@@ -200,6 +238,7 @@ export interface AreaOptions {
   groups_options?: Record<string, GroupOptions>;
   /** User-declared sections for this area's room view (top/bottom) */
   custom_sections?: AreaCustomSection[];
+  stacks_order?: StackKey[]; // default: DEFAULT_STACKS_ORDER
 }
 
 export interface GroupOptions {
@@ -359,6 +398,8 @@ export interface RoomEntities {
   automations: string[];
   scripts: string[];
   cameras: string[];
+  ups: string[];
+  energy: string[];
   [key: string]: string[];
 }
 

@@ -91,6 +91,9 @@
     "battery_one": "Батарейка",
     "battery_many": "Батарейки"
   },
+  "ups": {
+    "battery": "Батарея"
+  },
   "climate": {
     "heating": "Обогрев",
     "cooling": "Охлаждение",
