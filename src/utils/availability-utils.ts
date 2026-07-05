@@ -26,25 +26,27 @@ const HALF_WIDTH_TILE_DOMAINS = new Set([
 ]);
 
 type EntityReferenceConfig = {
-  entity?: unknown;
+  entity?: string;
 };
 
-type GridAwareConfig = EntityReferenceConfig & {
-  grid_options?: unknown;
-  type?: unknown;
-  features?: unknown;
+type VisibilityAwareConfig = EntityReferenceConfig & {
+  visibility?: LovelaceCondition[];
+};
+
+type GridAwareConfig = VisibilityAwareConfig & {
+  grid_options?: LovelaceCardConfig['grid_options'];
+  type?: string;
+  features?: unknown[];
 };
 
 type AvailabilityAwareCardConfig = LovelaceCardConfig & {
-  camera_image?: unknown;
-  entities?: unknown;
-  cards?: unknown;
-  card?: unknown;
-  badges?: unknown;
-  features?: unknown;
+  camera_image?: string;
+  entities?: Array<string | EntityReferenceConfig>;
+  cards?: LovelaceCardConfig[];
+  card?: LovelaceCardConfig;
+  badges?: Array<string | Partial<LovelaceBadgeConfig>>;
+  features?: unknown[];
 };
-
-type AvailabilityAwareBadgeConfig = Partial<LovelaceBadgeConfig> & EntityReferenceConfig;
 
 export function shouldHideUnavailableEntities(
   config?: Pick<Simon42StrategyConfig, 'hide_unavailable_entities'>
@@ -102,15 +104,28 @@ function getStableGridOptions(
   };
 }
 
-function withAvailabilityVisibility<T extends EntityReferenceConfig & { visibility?: unknown }>(config: T): T {
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isLovelaceCardConfig(value: unknown): value is LovelaceCardConfig {
+  return isObject(value) && typeof value.type === 'string';
+}
+
+function isBadgeConfig(value: unknown): value is Partial<LovelaceBadgeConfig> {
+  return isObject(value);
+}
+
+function withAvailabilityVisibility<T extends VisibilityAwareConfig & GridAwareConfig>(config: T): T {
   const entity = config.entity;
   if (typeof entity !== 'string' || entity.length === 0) return config;
+  const visibility = Array.isArray(config.visibility) ? config.visibility : [];
 
   return {
     ...config,
     ...getStableGridOptions(config, entity),
     visibility: [
-      ...((Array.isArray(config.visibility) ? config.visibility : []) as LovelaceCondition[]),
+      ...visibility,
       ...availabilityVisibility(entity),
     ],
   };
@@ -130,10 +145,9 @@ function collectEntityIdsFromValue(entityIds: Set<string>, value: unknown): void
     value.forEach((entry) => collectEntityIdsFromValue(entityIds, entry));
     return;
   }
-  if (typeof value !== 'object') return;
+  if (!isObject(value)) return;
 
-  const config = value as EntityReferenceConfig;
-  addEntityId(entityIds, config.entity);
+  addEntityId(entityIds, value.entity);
 }
 
 function collectEntityIdsFromCard(card: LovelaceCardConfig): string[] {
@@ -146,24 +160,20 @@ function collectEntityIdsFromCard(card: LovelaceCardConfig): string[] {
 
   if (Array.isArray(availabilityCard.cards)) {
     for (const child of availabilityCard.cards) {
-      for (const entityId of collectEntityIdsFromCard(child as LovelaceCardConfig)) entityIds.add(entityId);
+      for (const entityId of collectEntityIdsFromCard(child)) entityIds.add(entityId);
     }
   }
 
-  if (
-    availabilityCard.card &&
-    typeof availabilityCard.card === 'object' &&
-    !Array.isArray(availabilityCard.card)
-  ) {
-    for (const entityId of collectEntityIdsFromCard(availabilityCard.card as LovelaceCardConfig)) {
+  if (isLovelaceCardConfig(availabilityCard.card)) {
+    for (const entityId of collectEntityIdsFromCard(availabilityCard.card)) {
       entityIds.add(entityId);
     }
   }
 
   if (Array.isArray(availabilityCard.badges)) {
     for (const badge of availabilityCard.badges) {
-      if (!badge || typeof badge !== 'object' || Array.isArray(badge)) continue;
-      addEntityId(entityIds, (badge as AvailabilityAwareBadgeConfig).entity);
+      if (!isBadgeConfig(badge)) continue;
+      addEntityId(entityIds, badge.entity);
     }
   }
 
@@ -199,14 +209,22 @@ function applyToSection(section: LovelaceSectionConfig): LovelaceSectionConfig {
     ...section,
     ...(shouldApplySectionAvailability(cardsWithEntityIds)
       ? {
-          visibility: [
-            ...((Array.isArray(section.visibility) ? section.visibility : []) as LovelaceCondition[]),
-            ...anyEntityAvailableVisibility(entityIds),
-          ],
+          visibility: Array.isArray(section.visibility)
+            ? [...section.visibility, ...anyEntityAvailableVisibility(entityIds)]
+            : anyEntityAvailableVisibility(entityIds),
         }
       : {}),
     cards,
   };
+}
+
+function mapBadges(
+  badges: Array<string | Partial<LovelaceBadgeConfig>>
+): Array<string | Partial<LovelaceBadgeConfig>> {
+  return badges.map((badge) => {
+    if (!isBadgeConfig(badge)) return badge;
+    return withAvailabilityVisibility(badge);
+  });
 }
 
 function applyToCard(card: LovelaceCardConfig): LovelaceCardConfig {
@@ -215,24 +233,21 @@ function applyToCard(card: LovelaceCardConfig): LovelaceCardConfig {
   if (Array.isArray(next.cards)) {
     next = {
       ...next,
-      cards: next.cards.map((child: LovelaceCardConfig) => applyToCard(child)),
+      cards: next.cards.map((child) => applyToCard(child)),
     };
   }
 
-  if (next.card && typeof next.card === 'object' && !Array.isArray(next.card)) {
+  if (isLovelaceCardConfig(next.card)) {
     next = {
       ...next,
-      card: applyToCard(next.card as LovelaceCardConfig),
+      card: applyToCard(next.card),
     };
   }
 
   if (Array.isArray(next.badges)) {
     next = {
       ...next,
-      badges: next.badges.map((badge: string | Partial<LovelaceBadgeConfig>) => {
-        if (!badge || typeof badge !== 'object' || Array.isArray(badge)) return badge;
-        return withAvailabilityVisibility(badge);
-      }),
+      badges: mapBadges(next.badges),
     };
   }
 
@@ -249,10 +264,7 @@ export function withUnavailableEntitiesHidden(
     ...view,
     ...(Array.isArray(view.badges)
       ? {
-          badges: view.badges.map((badge) => {
-            if (!badge || typeof badge !== 'object') return badge;
-            return withAvailabilityVisibility(badge);
-          }),
+          badges: mapBadges(view.badges),
         }
       : {}),
     ...(Array.isArray(view.sections)
@@ -273,10 +285,6 @@ export function isEntityCurrentlyAvailable(
   entityId: string,
   config?: Pick<Simon42StrategyConfig, 'hide_unavailable_entities'>
 ): boolean {
-  const states = hass?.states;
-  const state =
-    states && Object.prototype.hasOwnProperty.call(states, entityId)
-      ? Reflect.get(states, entityId)?.state
-      : undefined;
+  const state = hass?.states?.[entityId]?.state;
   return !shouldHideUnavailableEntities(config) || !isUnavailableState(state);
 }
