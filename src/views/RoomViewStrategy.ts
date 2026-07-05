@@ -53,7 +53,7 @@ interface UpsDeviceRender {
 }
 
 function hasOwnState(states: HomeAssistant['states'], entityId: string): boolean {
-  return Object.prototype.hasOwnProperty.call(states, entityId);
+  return Object.keys(states).some((stateId) => stateId === entityId);
 }
 
 function getEntityState(
@@ -63,6 +63,13 @@ function getEntityState(
   if (!hasOwnState(hass.states, entityId)) return undefined;
   const entry = Object.entries(hass.states).find(([id]) => id === entityId);
   return entry?.[1];
+}
+
+function getEntityDeviceClass(
+  hass: HomeAssistant,
+  entityId: string
+): string | undefined {
+  return getEntityState(hass, entityId)?.attributes?.device_class as string | undefined;
 }
 
 function findUpsEntityGroups(entities: EntityRegistryEntry[], hass: HomeAssistant): UpsEntityGroup[] {
@@ -112,7 +119,7 @@ function findUpsEntityGroups(entities: EntityRegistryEntry[], hass: HomeAssistan
 }
 
 function upsSensorRole(entityId: string, hass: HomeAssistant): number {
-  const deviceClass = getEntityState(hass, entityId)?.attributes?.device_class as string | undefined;
+  const deviceClass = getEntityDeviceClass(hass, entityId);
   if (deviceClass === 'duration' || /runtime|time_left|load_runtime/.test(entityId)) return 1;
   if (deviceClass === 'power' || deviceClass === 'apparent_power' || /(^|[._])load([._]|$)/.test(entityId)) return 2;
   if (deviceClass === 'voltage' || /voltage|input/.test(entityId)) return 3;
@@ -559,7 +566,7 @@ class Simon42ViewRoomStrategy extends HTMLElement {
     if (roomEntities.energy.length > 0) {
       const energyEntities = roomEntities.energy
         .map((entityId) => {
-          const deviceClass = hass.states[entityId]?.attributes?.device_class as string | undefined;
+          const deviceClass = getEntityDeviceClass(hass, entityId);
           return {
             entityId,
             order: ROOM_ENERGY_SENSOR_CLASSES.indexOf(deviceClass as (typeof ROOM_ENERGY_SENSOR_CLASSES)[number]),
