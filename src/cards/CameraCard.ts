@@ -41,7 +41,7 @@ class Simon42CameraCard extends HTMLElement {
   }
 
   setConfig(config: CameraCardConfig): void {
-    if (!config?.entity) throw new Error('Camera entity must be specified');
+    if (!config.entity) throw new Error('Camera entity must be specified');
     this._config = config;
     this._liveRequested = false;
     this._ensureCard();
@@ -75,13 +75,13 @@ class Simon42CameraCard extends HTMLElement {
     const token = ++this._renderToken;
     void this._createNativeCard(this._createNativeConfig())
       .then((card) => {
-        if (token !== this._renderToken) return;
+        if (this._renderToken > token) return;
         this._card = card;
         this._updateNativeCard();
         this._renderContents();
       })
       .catch(() => {
-        if (token === this._renderToken) this._card = undefined;
+        if (this._renderToken <= token) this._card = undefined;
       });
   }
 
@@ -107,7 +107,8 @@ class Simon42CameraCard extends HTMLElement {
   }
 
   private _createNativeConfig(): LovelaceCardConfig {
-    const config = this._config!;
+    const config = this._config;
+    if (!config) throw new Error('Camera card config is missing');
     const common = {
       camera_image: config.entity,
       camera_view: this._liveRequested ? 'live' : 'auto',
