@@ -10,7 +10,7 @@ import type {
   LovelaceBadgeConfig,
 } from '../types/lovelace';
 import type { AreaRegistryEntry, EntityRegistryEntry } from '../types/registries';
-import type { AreaCustomSection, RoomEntities, SensorEntities, StackKey } from '../types/strategy';
+import type { AreaCustomSection, GroupOptions, RoomEntities, SensorEntities, StackKey } from '../types/strategy';
 import { mergeStacksOrder, sortByFriendlyName, sortByLastChanged, stripAreaName } from '../utils/name-utils';
 import { buildAreaCustomSections } from '../sections/CustomSections';
 import { Registry } from '../Registry';
@@ -50,6 +50,105 @@ interface UpsDeviceRender {
   name: string;
   batteryId: string;
   sensorIds: string[];
+}
+
+type RoomGroupKey = keyof RoomEntities;
+type RoomGroupsOptions = Partial<Record<RoomGroupKey | 'badges', GroupOptions>>;
+
+const ROOM_GROUP_KEYS: RoomGroupKey[] = [
+  'lights',
+  'covers',
+  'covers_curtain',
+  'covers_window',
+  'scenes',
+  'climate',
+  'media_player',
+  'vacuum',
+  'fan',
+  'humidifier',
+  'valve',
+  'water_heater',
+  'switches',
+  'locks',
+  'automations',
+  'scripts',
+  'cameras',
+  'ups',
+  'energy',
+];
+
+function getRoomEntityList(roomEntities: RoomEntities, key: RoomGroupKey): string[] {
+  switch (key) {
+    case 'lights': return roomEntities.lights;
+    case 'covers': return roomEntities.covers;
+    case 'covers_curtain': return roomEntities.covers_curtain;
+    case 'covers_window': return roomEntities.covers_window;
+    case 'scenes': return roomEntities.scenes;
+    case 'climate': return roomEntities.climate;
+    case 'media_player': return roomEntities.media_player;
+    case 'vacuum': return roomEntities.vacuum;
+    case 'fan': return roomEntities.fan;
+    case 'humidifier': return roomEntities.humidifier;
+    case 'valve': return roomEntities.valve;
+    case 'water_heater': return roomEntities.water_heater;
+    case 'switches': return roomEntities.switches;
+    case 'locks': return roomEntities.locks;
+    case 'automations': return roomEntities.automations;
+    case 'scripts': return roomEntities.scripts;
+    case 'cameras': return roomEntities.cameras;
+    case 'ups': return roomEntities.ups;
+    case 'energy': return roomEntities.energy;
+    default: return [];
+  }
+}
+
+function setRoomEntityList(roomEntities: RoomEntities, key: RoomGroupKey, value: string[]): void {
+  switch (key) {
+    case 'lights': roomEntities.lights = value; return;
+    case 'covers': roomEntities.covers = value; return;
+    case 'covers_curtain': roomEntities.covers_curtain = value; return;
+    case 'covers_window': roomEntities.covers_window = value; return;
+    case 'scenes': roomEntities.scenes = value; return;
+    case 'climate': roomEntities.climate = value; return;
+    case 'media_player': roomEntities.media_player = value; return;
+    case 'vacuum': roomEntities.vacuum = value; return;
+    case 'fan': roomEntities.fan = value; return;
+    case 'humidifier': roomEntities.humidifier = value; return;
+    case 'valve': roomEntities.valve = value; return;
+    case 'water_heater': roomEntities.water_heater = value; return;
+    case 'switches': roomEntities.switches = value; return;
+    case 'locks': roomEntities.locks = value; return;
+    case 'automations': roomEntities.automations = value; return;
+    case 'scripts': roomEntities.scripts = value; return;
+    case 'cameras': roomEntities.cameras = value; return;
+    case 'ups': roomEntities.ups = value; return;
+    case 'energy': roomEntities.energy = value; return;
+  }
+}
+
+function getGroupOptions(groupsOptions: RoomGroupsOptions, key: RoomGroupKey): GroupOptions | undefined {
+  switch (key) {
+    case 'lights': return groupsOptions.lights;
+    case 'covers': return groupsOptions.covers;
+    case 'covers_curtain': return groupsOptions.covers_curtain;
+    case 'covers_window': return groupsOptions.covers_window;
+    case 'scenes': return groupsOptions.scenes;
+    case 'climate': return groupsOptions.climate;
+    case 'media_player': return groupsOptions.media_player;
+    case 'vacuum': return groupsOptions.vacuum;
+    case 'fan': return groupsOptions.fan;
+    case 'humidifier': return groupsOptions.humidifier;
+    case 'valve': return groupsOptions.valve;
+    case 'water_heater': return groupsOptions.water_heater;
+    case 'switches': return groupsOptions.switches;
+    case 'locks': return groupsOptions.locks;
+    case 'automations': return groupsOptions.automations;
+    case 'scripts': return groupsOptions.scripts;
+    case 'cameras': return groupsOptions.cameras;
+    case 'ups': return groupsOptions.ups;
+    case 'energy': return groupsOptions.energy;
+    default: return undefined;
+  }
 }
 
 function findUpsEntityGroups(entities: EntityRegistryEntry[], hass: HomeAssistant): UpsEntityGroup[] {
@@ -159,7 +258,7 @@ class Simon42ViewRoomStrategy extends HTMLElement {
 
     // Ensure Registry is initialized (idempotent — no-op if already done)
     Registry.initialize(hass, dashboardConfig);
-    const groupsOptions: Record<string, any> = config.groups_options || {};
+    const groupsOptions: RoomGroupsOptions = config.groups_options || {};
     const areaCustomSections: AreaCustomSection[] = config.custom_sections || [];
 
     const roomEntities: RoomEntities = {
@@ -365,22 +464,23 @@ class Simon42ViewRoomStrategy extends HTMLElement {
     }
 
     const applyGroupFilter = (groupKey: keyof RoomEntities): string[] => {
-      const groupOpts = groupsOptions[groupKey];
-      if (!groupOpts) return roomEntities[groupKey];
-      let filtered = roomEntities[groupKey];
-      if (groupOpts.hidden?.length > 0) {
+      const groupOpts = getGroupOptions(groupsOptions, groupKey);
+      let filtered = getRoomEntityList(roomEntities, groupKey);
+      if (!groupOpts) return filtered;
+      if ((groupOpts.hidden?.length ?? 0) > 0) {
         const hiddenSet = new Set<string>(groupOpts.hidden);
         filtered = filtered.filter((e: string) => !hiddenSet.has(e));
       }
-      if (groupOpts.order?.length > 0) {
-        const orderMap = new Map<string, number>(groupOpts.order.map((id: string, i: number) => [id, i]));
+      if ((groupOpts.order?.length ?? 0) > 0) {
+        const orderValues = groupOpts.order ?? [];
+        const orderMap = new Map<string, number>(orderValues.map((id: string, i: number) => [id, i]));
         filtered.sort((a: string, b: string) => (orderMap.get(a) ?? 9999) - (orderMap.get(b) ?? 9999));
       }
       return filtered;
     };
 
-    for (const key of Object.keys(roomEntities) as (keyof RoomEntities)[]) {
-      roomEntities[key] = applyGroupFilter(key);
+    for (const key of ROOM_GROUP_KEYS) {
+      setRoomEntityList(roomEntities, key, applyGroupFilter(key));
     }
 
     const upsDevices: UpsDeviceRender[] = [];
