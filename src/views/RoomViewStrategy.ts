@@ -52,6 +52,19 @@ interface UpsDeviceRender {
   sensorIds: string[];
 }
 
+function hasOwnState(states: HomeAssistant['states'], entityId: string): boolean {
+  return Object.prototype.hasOwnProperty.call(states, entityId);
+}
+
+function getEntityState(
+  hass: HomeAssistant,
+  entityId: string
+): HassEntity | undefined {
+  if (!hasOwnState(hass.states, entityId)) return undefined;
+  const entry = Object.entries(hass.states).find(([id]) => id === entityId);
+  return entry?.[1];
+}
+
 function findUpsEntityGroups(entities: EntityRegistryEntry[], hass: HomeAssistant): UpsEntityGroup[] {
   const entitiesByDevice = new Map<string, EntityRegistryEntry[]>();
   for (const entity of entities) {
@@ -91,7 +104,7 @@ function findUpsEntityGroups(entities: EntityRegistryEntry[], hass: HomeAssistan
       entityIds: deviceEntities.map((entity) => entity.entity_id),
       sensorIds: deviceEntities
         .map((entity) => entity.entity_id)
-        .filter((entityId) => entityId !== batteryId && !!hass.states[entityId]),
+        .filter((entityId) => entityId !== batteryId && !!getEntityState(hass, entityId)),
     });
   }
 
@@ -99,7 +112,7 @@ function findUpsEntityGroups(entities: EntityRegistryEntry[], hass: HomeAssistan
 }
 
 function upsSensorRole(entityId: string, hass: HomeAssistant): number {
-  const deviceClass = hass.states[entityId]?.attributes?.device_class as string | undefined;
+  const deviceClass = getEntityState(hass, entityId)?.attributes?.device_class as string | undefined;
   if (deviceClass === 'duration' || /runtime|time_left|load_runtime/.test(entityId)) return 1;
   if (deviceClass === 'power' || deviceClass === 'apparent_power' || /(^|[._])load([._]|$)/.test(entityId)) return 2;
   if (deviceClass === 'voltage' || /voltage|input/.test(entityId)) return 3;
