@@ -135,6 +135,25 @@ function addEntityId(entityIds: Set<string>, value: unknown): void {
   if (typeof value === 'string' && value.length > 0) entityIds.add(value);
 }
 
+function hasOwnState(
+  states: HomeAssistant['states'] | undefined,
+  entityId: string
+): states is NonNullable<HomeAssistant['states']> {
+  return !!states && Object.prototype.hasOwnProperty.call(states, entityId);
+}
+
+function getEntityStateValue(
+  hass: HomeAssistant | undefined,
+  entityId: string
+): string | undefined {
+  const states = hass?.states;
+  if (!hasOwnState(states, entityId)) return undefined;
+
+  const entry = Object.entries(states).find(([id]) => id === entityId);
+  if (!entry) return undefined;
+  return entry[1]?.state;
+}
+
 function collectEntityIdsFromValue(entityIds: Set<string>, value: unknown): void {
   if (!value) return;
   if (typeof value === 'string') {
@@ -142,7 +161,9 @@ function collectEntityIdsFromValue(entityIds: Set<string>, value: unknown): void
     return;
   }
   if (Array.isArray(value)) {
-    value.forEach((entry) => collectEntityIdsFromValue(entityIds, entry));
+    value.forEach((entry) => {
+      collectEntityIdsFromValue(entityIds, entry);
+    });
     return;
   }
   if (!isObject(value)) return;
@@ -285,6 +306,6 @@ export function isEntityCurrentlyAvailable(
   entityId: string,
   config?: Pick<Simon42StrategyConfig, 'hide_unavailable_entities'>
 ): boolean {
-  const state = hass?.states?.[entityId]?.state;
+  const state = getEntityStateValue(hass, entityId);
   return !shouldHideUnavailableEntities(config) || !isUnavailableState(state);
 }
