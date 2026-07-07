@@ -135,6 +135,22 @@ export interface Simon42StrategyConfig {
   show_battery_summary?: boolean; // default: true
   show_battery_view?: boolean; // default: false — keep the /batteries view
   // available even when show_battery_summary is off (#315: badge deep-links)
+  show_maintenance_summary?: boolean; // default: false — admin-flavoured
+  // "Wartung" summary tile + /maintenance view: pending updates, unavailable
+  // devices, critical batteries, HA repairs (built-in card, HA >= 2026.3)
+  maintenance_visible_users?: string[]; // default: [] = everyone. HA user ids
+  // that see the maintenance tile + nav tab (native Lovelace user condition).
+  // Display logic only — NOT a security boundary; the view stays reachable
+  // by URL for everyone
+  show_maintenance_activity?: boolean; // default: true — logbook (24h) in
+  // the maintenance view sidebar, scoped to exactly the entities the view
+  // surfaces (pending updates, unavailable devices, critical batteries);
+  // auto-hides without the logbook integration or when nothing's wrong
+  show_video_tips?: boolean; // default: true — "Expertentipps" in the
+  // maintenance view (sidebar): curated simon42 videos matched to the
+  // installed integrations (static list in the bundle, no runtime fetch,
+  // long-form only, setup videos vanish once the integration is installed);
+  // each tip dismissable per browser via localStorage
   show_climate_summary?: boolean; // default: false
   show_camera_view?: boolean; // default: false — opt-in CCTV view (/cameras):
   // one block per camera device with spotlight tile, Reolink PTZ pad,
