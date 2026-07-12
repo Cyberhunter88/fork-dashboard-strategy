@@ -26,6 +26,9 @@ export const EDITOR_STYLES = css`
   /* -- Collapsible panel shell (#354) --------------------------------- */
   .section.panel {
     padding: 0;
+    overflow: visible;
+  }
+  .section.panel.collapsed {
     overflow: hidden;
   }
   .panel-header {
