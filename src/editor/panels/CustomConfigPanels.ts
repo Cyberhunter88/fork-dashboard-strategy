@@ -375,8 +375,10 @@ function addCustomView(host: StrategyEditorHost): void {
   host._fireConfigChanged(newConfig);
 }
 
-function removeCustomView(host: StrategyEditorHost, index: number): void {
+export function removeCustomView(host: StrategyEditorHost, index: number): void {
   const customViews: CustomView[] = [...(host._config.custom_views || [])];
+  const removed = customViews.at(index);
+  if (!removed) return;
   customViews.splice(index, 1);
 
   const newConfig: Simon42StrategyConfig = { ...host._config };
@@ -385,12 +387,18 @@ function removeCustomView(host: StrategyEditorHost, index: number): void {
   } else {
     newConfig.custom_views = customViews;
   }
+  if (removed.path && Object.hasOwn(newConfig.view_visible_users || {}, removed.path)) {
+    const nextVisibility = { ...(newConfig.view_visible_users || {}) };
+    Reflect.deleteProperty(nextVisibility, removed.path);
+    if (Object.keys(nextVisibility).length === 0) delete newConfig.view_visible_users;
+    else newConfig.view_visible_users = nextVisibility;
+  }
 
   host._config = newConfig;
   host._fireConfigChanged(newConfig);
 }
 
-function updateCustomViewField(host: StrategyEditorHost, index: number, field: string, value: string): void {
+export function updateCustomViewField(host: StrategyEditorHost, index: number, field: string, value: string): void {
   const customViews: CustomView[] = [...(host._config.custom_views || [])];
   const existing = customViews.at(index);
   if (!existing) return;
@@ -398,6 +406,15 @@ function updateCustomViewField(host: StrategyEditorHost, index: number, field: s
   customViews.splice(index, 1, { ...existing, [field]: value });
 
   const newConfig: Simon42StrategyConfig = { ...host._config, custom_views: customViews };
+  if (field === 'path' && existing.path && existing.path !== value
+      && Object.hasOwn(newConfig.view_visible_users || {}, existing.path)) {
+    const nextVisibility = { ...(newConfig.view_visible_users || {}) };
+    const users = Reflect.get(nextVisibility, existing.path) as string[];
+    Reflect.deleteProperty(nextVisibility, existing.path);
+    if (value) Reflect.set(nextVisibility, value, users);
+    if (Object.keys(nextVisibility).length === 0) delete newConfig.view_visible_users;
+    else newConfig.view_visible_users = nextVisibility;
+  }
   host._config = newConfig;
   host._fireConfigChanged(newConfig);
 }
@@ -515,7 +532,7 @@ function addCustomSection(host: StrategyEditorHost): void {
   host._fireConfigChanged(newConfig);
 }
 
-function removeCustomSection(host: StrategyEditorHost, index: number): void {
+export function removeCustomSection(host: StrategyEditorHost, index: number): void {
   const sections: CustomSection[] = [...(host._config.custom_sections || [])];
   const removedKey = sections.at(index)?.key;
   sections.splice(index, 1);
@@ -531,12 +548,19 @@ function removeCustomSection(host: StrategyEditorHost, index: number): void {
   if (removedKey && newConfig.sections_order?.includes(removedKey)) {
     newConfig.sections_order = newConfig.sections_order.filter((k) => k !== removedKey);
   }
+  // Same for a per-user visibility rule keyed by the removed section
+  if (removedKey && Object.hasOwn(newConfig.section_visible_users || {}, removedKey)) {
+    const nextVisibility = { ...(newConfig.section_visible_users || {}) };
+    Reflect.deleteProperty(nextVisibility, removedKey);
+    if (Object.keys(nextVisibility).length === 0) delete newConfig.section_visible_users;
+    else newConfig.section_visible_users = nextVisibility;
+  }
 
   host._config = newConfig;
   host._fireConfigChanged(newConfig);
 }
 
-function updateCustomSectionField(host: StrategyEditorHost, index: number, field: 'key', value: string): void {
+export function updateCustomSectionField(host: StrategyEditorHost, index: number, field: 'key', value: string): void {
   const sections: CustomSection[] = [...(host._config.custom_sections || [])];
   const existing = sections.at(index);
   if (!existing) return;
@@ -554,6 +578,15 @@ function updateCustomSectionField(host: StrategyEditorHost, index: number, field
       newConfig.custom_cards = newConfig.custom_cards.map((c) =>
         c.target_section === previousKey ? { ...c, target_section: value } : c
       );
+    }
+    // Move a per-user visibility rule along with the renamed key
+    if (Object.hasOwn(newConfig.section_visible_users || {}, previousKey)) {
+      const nextVisibility = { ...(newConfig.section_visible_users || {}) };
+      const users = Reflect.get(nextVisibility, previousKey) as string[];
+      Reflect.deleteProperty(nextVisibility, previousKey);
+      if (value) Reflect.set(nextVisibility, value, users);
+      if (Object.keys(nextVisibility).length === 0) delete newConfig.section_visible_users;
+      else newConfig.section_visible_users = nextVisibility;
     }
   }
 
