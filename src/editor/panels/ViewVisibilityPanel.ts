@@ -34,6 +34,9 @@ export function renderViewVisibilitySection(host: StrategyEditorHost): TemplateR
     <div class="description" style="margin-left: 0; color: var(--error-color, #db4437); font-weight: 500;">
       &#9888;&#65039; ${localize('editor.view_visibility_warning')}
     </div>
+    <div class="description" style="margin-left: 0; color: var(--warning-color, #ffa600); font-weight: 500;">
+      &#9888;&#65039; ${localize('editor.view_visibility_no_person_warning')}
+    </div>
     <div class="description" style="margin-left: 0;">
       ${localize('editor.view_visibility_reload_hint')}
     </div>
@@ -98,7 +101,8 @@ function getViewOptions(host: StrategyEditorHost): RuleOption[] {
   for (const area of areas) views.push({ key: area.area_id, title: area.name });
 
   for (const view of config.custom_views || []) {
-    if (view.parsed_config && view.title && view.path) {
+    const isComplete = view.parsed_config || (view.ref_dashboard && view.ref_view);
+    if (isComplete && view.title && view.path) {
       views.push({ key: view.path, title: view.title });
     }
   }
