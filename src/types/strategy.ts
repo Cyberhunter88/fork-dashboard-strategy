@@ -61,6 +61,7 @@ export type StackKey =
   | 'media'
   | 'scenes'
   | 'vacuums'
+  | 'switches'
   | 'misc'
   | 'automations'
   | 'scripts'
@@ -79,6 +80,7 @@ export const DEFAULT_STACKS_ORDER: StackKey[] = [
   'media',
   'scenes',
   'vacuums',
+  'switches',
   'misc',
   'automations',
   'scripts',
@@ -187,6 +189,7 @@ export interface Simon42StrategyConfig {
   unavailable_batteries_bucket?: 'critical' | 'good'; // default: 'good' (follow-up to #248)
   show_locks_in_rooms?: boolean; // default: false
   show_vacuums_section_in_rooms?: boolean; // default: false (vacuums & mowers stay under Misc, like HA's areas strategy)
+  show_switches_section_in_rooms?: boolean; // default: false (switches & plugs stay under Misc; opt-in combined section, #376)
   show_automations_in_rooms?: boolean; // default: false
   show_scripts_in_rooms?: boolean; // default: false
   show_ups_in_rooms?: boolean; // default: false (opt-in, #310 section convention)
@@ -394,6 +397,12 @@ export interface CustomView {
   ref_dashboard?: string;
   /** Reference mode: view path in the source dashboard, or the stringified view index for views without a path */
   ref_view?: string;
+  /**
+   * Position anchor (#377): path of the view after which this custom view
+   * is inserted in the tab order (e.g. an area_id for "between two rooms").
+   * Unset or unknown path = appended at the end (previous behavior).
+   */
+  after_view?: string;
 }
 
 // -- Custom Badges ----------------------------------------------------
