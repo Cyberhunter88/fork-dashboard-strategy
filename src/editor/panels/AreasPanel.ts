@@ -27,7 +27,13 @@ import type {
 } from '../../types/strategy';
 import type { AreaRegistryEntry, EntityRegistryEntry } from '../../types/registries';
 import { localize } from '../../utils/localize';
-import { isBadgeCandidate, isDefaultShowName, isEnergyBlockSensor, resolveShowName } from '../../utils/badge-utils';
+import {
+  isBadgeCandidate,
+  isDefaultShowName,
+  isEnergyBlockSensor,
+  isWindowContactDeviceClass,
+  resolveShowName,
+} from '../../utils/badge-utils';
 import { findUpsEntityGroups } from '../../views/RoomViewStrategy';
 import { stateFor } from '../entity-options';
 import type { StrategyEditorHost } from '../editor-host';
@@ -1376,7 +1382,11 @@ function getAreaBadgeCandidates(areaId: string, hass: HomeAssistant, config: Sim
     // Globally disabled contact types don't render as badges — don't offer
     // them as candidates either (they stay pickable as additional badges,
     // which is the deliberate per-room override).
-    if (domain === 'binary_sensor' && dc === 'window' && config.show_window_contacts_in_rooms === false) continue;
+    if (
+      domain === 'binary_sensor' &&
+      isWindowContactDeviceClass(dc) &&
+      config.show_window_contacts_in_rooms === false
+    ) continue;
     if (domain === 'binary_sensor' && dc === 'door' && config.show_door_contacts_in_rooms === false) continue;
 
     if (domain === 'sensor' && (dc === 'battery' || entity.entity_id.includes('battery'))) {
